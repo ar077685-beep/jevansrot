@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
@@ -12,6 +12,12 @@ export default function CartPage() {
   const [couponError, setCouponError] = useState('');
   const [pincode, setPincode] = useState('');
   const [pincodeChecked, setPincodeChecked] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const discount = couponApplied ? Math.round(cartTotal * 0.1) : 0;
   const delivery = cartTotal >= 999 ? 0 : 79;
@@ -42,8 +48,23 @@ export default function CartPage() {
 
         <div className={`cart-layout${cart.length === 0 ? ' is-empty' : ''}`}>
           {/* LEFT — Items */}
-          <div className={`cart-left${cart.length === 0 ? ' is-empty' : ''}`}>
-            {cart.length === 0 ? (
+          <div className={`cart-left${cart.length === 0 && !loading ? ' is-empty' : ''}`}>
+            {loading ? (
+              <div className="cart-items-list">
+                <div className="skeleton skel-title" style={{ width: '200px', margin: '20px 0' }}></div>
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="skel-cart-item">
+                    <div className="skeleton skel-cart-img"></div>
+                    <div className="skel-cart-info">
+                      <div className="skeleton skel-text" style={{ width: '40%' }}></div>
+                      <div className="skeleton skel-title" style={{ width: '70%', height: '20px' }}></div>
+                      <div className="skeleton skel-text" style={{ width: '30%' }}></div>
+                      <div className="skeleton" style={{ width: '100px', height: '36px', marginTop: '16px', borderRadius: '4px' }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : cart.length === 0 ? (
               <div className="cart-empty-page">
                 <div className="cart-empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
                   <div style={{ width: '120px', height: '120px', background: '#edf5ef', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -133,7 +154,7 @@ export default function CartPage() {
                   ))}
                 </div>
 
-                {/* Delivery Check */}
+                {/* Delivery Check
                 <div className="deliver-check-card">
                   <h3>📦 Check Delivery</h3>
                   <div className="pincode-row">
@@ -152,6 +173,7 @@ export default function CartPage() {
                     </div>
                   )}
                 </div>
+                */}
 
                 {/* Coupon */}
                 <div className="coupon-card">
@@ -171,15 +193,22 @@ export default function CartPage() {
                     </div>
                   )}
                   {couponError && <div className="coupon-error">{couponError}</div>}
-                  <div className="coupon-hint">💡 Try code <strong>HEALTHY10</strong> for 10% off</div>
+                  {/* <div className="coupon-hint">💡 Try code <strong>HEALTHY10</strong> for 10% off</div> */}
                 </div>
               </>
             )}
           </div>
 
           {/* RIGHT — Price Summary */}
-          {cart.length > 0 && (
+          {(cart.length > 0 || loading) && (
             <div className="cart-right">
+              {loading ? (
+                <>
+                  <div className="price-box skeleton" style={{ height: '300px', marginBottom: '20px' }}></div>
+                  <div className="checkout-box skeleton skel-checkout-box"></div>
+                </>
+              ) : (
+                <>
               {/* Price Details */}
               <div className="price-box">
                 <h3 className="price-box-title">PRICE DETAILS</h3>
@@ -274,6 +303,8 @@ export default function CartPage() {
                 <div className="tb-item"><span>↩️</span> Easy 30-day returns</div>
                 <div className="tb-item"><span>✅</span> FSSAI Certified Products</div>
               </div>
+                </>
+              )}
             </div>
           )}
         </div>

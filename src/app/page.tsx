@@ -1,117 +1,13 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCart } from '../context/CartContext';
+import { products } from '../data/products';
 
-const products = [
-  {
-    id: 'p1',
-    slug: 'boost-3499',
-    name: 'Jevansrot Boost Medicine',
-    vendor: 'Jevansrot',
-    img: '/products/boost-3499.jpg',
-    price: 3499,
-    compare: 4999,
-    off: '30% OFF',
-    badge: 'b-pop',
-    badgeLabel: 'Popular',
-    rating: 4.8,
-    reviews: 1247,
-    isNew: false,
-  },
-  {
-    id: 'p2',
-    slug: 'highpower-combo-3999',
-    name: 'High Power Combo',
-    vendor: 'Jevansrot',
-    img: '/products/highpower-combo-3999.png',
-    price: 3999,
-    compare: 5499,
-    off: '27% OFF',
-    badge: 'b-pop',
-    badgeLabel: 'Best Seller',
-    rating: 4.9,
-    reviews: 2143,
-    isNew: false,
-  },
-  {
-    id: 'p3',
-    slug: 'insan-combo-2999',
-    name: 'Insan Power Combo',
-    vendor: 'Jevansrot',
-    img: '/products/insan-combo-2999.jpg',
-    price: 2999,
-    compare: 3999,
-    off: '25% OFF',
-    badge: 'b-off',
-    badgeLabel: 'Sale',
-    rating: 4.7,
-    reviews: 843,
-    isNew: false,
-  },
-  {
-    id: 'p4',
-    slug: 'medicine-combo-3499',
-    name: 'Medicine Combo Pack',
-    vendor: 'Jevansrot',
-    img: '/products/medicine-combo-3499.jpg',
-    price: 3499,
-    compare: 4499,
-    off: '22% OFF',
-    badge: 'b-new',
-    badgeLabel: 'New',
-    rating: 4.8,
-    reviews: 612,
-    isNew: true,
-  },
-  {
-    id: 'p5',
-    slug: 'medicine-1999',
-    name: 'Jevansrot Daily Medicine',
-    vendor: 'Jevansrot',
-    img: '/products/medicine-1999.jpg',
-    price: 1999,
-    compare: 2999,
-    off: '33% OFF',
-    badge: 'b-off',
-    badgeLabel: 'Sale',
-    rating: 4.6,
-    reviews: 534,
-    isNew: false,
-  },
-  {
-    id: 'p6',
-    slug: 'oil-high-power-999',
-    name: 'Oil High Power',
-    vendor: 'Jevansrot',
-    img: '/products/oil-999.jpg',
-    price: 999,
-    compare: 1499,
-    off: '33% OFF',
-    badge: 'b-new',
-    badgeLabel: 'New',
-    rating: 4.7,
-    reviews: 378,
-    isNew: true,
-  },
-  {
-    id: 'p7',
-    slug: 'spray-1499',
-    name: 'Jevansrot Power Spray',
-    vendor: 'Jevansrot',
-    img: '/products/spray-1499.png',
-    price: 1499,
-    compare: 1999,
-    off: '25% OFF',
-    badge: 'b-pop',
-    badgeLabel: 'Popular',
-    rating: 4.8,
-    reviews: 921,
-    isNew: false,
-  },
-];
+
 
 const concerns = [
   { em: '⚡', name: 'Energy & Fitness', cnt: '8 Products' },
@@ -190,6 +86,12 @@ const mqItems = [
 export default function Home() {
   const { cart, addToCart, updateQuantity } = useCart();
   const getQty = (id: string) => cart.find(i => i.id === id)?.quantity ?? 0;
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <main>
@@ -198,49 +100,68 @@ export default function Home() {
       {/* Hero Section */}
       <section className="hero">
         <div className="hero-in">
-          <div>
-            <span className="hero-tag">Plant Based & Nano Formulated</span>
-            <h1 className="hero-title">
-              Healthy Life<br />
-              <span className="gold">Live Strong</span>
-            </h1>
-            <p className="hero-sub">
-              India&apos;s 1st Nano formulated nutraceutical brand. Experience up to{' '}
-              <strong>5X better absorption</strong> with our patented BioEnhance™ technology — pure plants, smarter science.
-            </p>
-            <div className="hero-btns">
-              <button className="btn-main" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}>
-                Shop Now
-              </button>
-              <button className="btn-sec" onClick={() => document.getElementById('technology')?.scrollIntoView({ behavior: 'smooth' })}>
-                Explore Science
-              </button>
-            </div>
-            <div className="hero-stats">
-              <div className="hstat"><span className="num">50K+</span><span className="lbl">Happy Customers</span></div>
-              <div className="hstat"><span className="num">5X</span><span className="lbl">Higher Bioavailability</span></div>
-              <div className="hstat"><span className="num">4.8★</span><span className="lbl">Avg Rating</span></div>
-            </div>
-          </div>
+          {loading ? (
+            <>
+              <div className="skel-hero-text">
+                <div className="skeleton skel-title" style={{ width: '120px', height: '24px', borderRadius: '100px' }}></div>
+                <div className="skeleton skel-title" style={{ width: '80%', height: '56px' }}></div>
+                <div className="skeleton skel-text"></div>
+                <div className="skeleton skel-text"></div>
+                <div className="skeleton skel-text" style={{ width: '60%' }}></div>
+                <div style={{ display: 'flex', gap: '14px', marginTop: '30px' }}>
+                  <div className="skeleton" style={{ width: '120px', height: '48px', borderRadius: '8px' }}></div>
+                  <div className="skeleton" style={{ width: '140px', height: '48px', borderRadius: '8px' }}></div>
+                </div>
+              </div>
+              <div className="skeleton skel-hero-img"></div>
+            </>
+          ) : (
+            <>
+              <div>
+                <span className="hero-tag">Plant Based & Nano Formulated</span>
+                <h1 className="hero-title">
+                  Healthy Life<br />
+                  <span className="gold">Live Strong</span>
+                </h1>
+                <p className="hero-sub">
+                  India&apos;s 1st Nano formulated nutraceutical brand. Experience up to{' '}
+                  <strong>5X better absorption</strong> with our patented BioEnhance™ technology — pure plants, smarter science.
+                </p>
+                <div className="hero-btns">
+                  <button className="btn-main" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}>
+                    Shop Now
+                  </button>
+                  <button className="btn-sec" onClick={() => document.getElementById('technology')?.scrollIntoView({ behavior: 'smooth' })}>
+                    Explore Science
+                  </button>
+                </div>
+                <div className="hero-stats">
+                  <div className="hstat"><span className="num">50K+</span><span className="lbl">Happy Customers</span></div>
+                  <div className="hstat"><span className="num">5X</span><span className="lbl">Higher Bioavailability</span></div>
+                  <div className="hstat"><span className="num">4.8★</span><span className="lbl">Avg Rating</span></div>
+                </div>
+              </div>
 
-          <div className="hero-img-box">
-            <Image
-              src="/products/highpower-combo-3999.png"
-              alt="Jevansrot Featured Image"
-              width={500}
-              height={500}
-              className="hero-img-main"
-              priority
-            />
-            <div className="hero-float f1">
-              <span className="dot"></span>
-              FSSAI &amp; GMP Certified
-            </div>
-            <div className="hero-float f2">
-              <span className="dot"></span>
-              Free Shipping ₹999+
-            </div>
-          </div>
+              <div className="hero-img-box">
+                <Image
+                  src="/products/highpower-combo-3999.webp"
+                  alt="Jevansrot Featured Image"
+                  width={500}
+                  height={500}
+                  className="hero-img-main"
+                  priority
+                />
+                <div className="hero-float f1">
+                  <span className="dot"></span>
+                  FSSAI &amp; GMP Certified
+                </div>
+                <div className="hero-float f2">
+                  <span className="dot"></span>
+                  Free Shipping ₹999+
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -289,57 +210,73 @@ export default function Home() {
             </p>
           </div>
           <div className="prod-grid">
-            {products.map((p) => (
-              <div key={p.id} className="prod-card">
-                <div className="prod-badges">
-                  <span className={`badge ${p.badge}`}>{p.badgeLabel}</span>
-                  {p.isNew && <span className="badge b-new">New</span>}
+            {loading ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="prod-card skel-prod-card">
+                  <div className="skeleton skel-prod-img"></div>
+                  <div className="skeleton skel-text" style={{ width: '40%' }}></div>
+                  <div className="skeleton skel-title" style={{ height: '20px', width: '80%', margin: 0 }}></div>
+                  <div className="skeleton skel-text" style={{ width: '60%' }}></div>
+                  <div className="skeleton" style={{ height: '44px', width: '100%', marginTop: 'auto', borderRadius: '8px' }}></div>
                 </div>
-                <button className="wl-ico" aria-label="Wishlist">
-                  <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
-                </button>
-                <div className="prod-img-wrap">
-                  <Image src={p.img} alt={p.name} width={300} height={300} className="prod-img" />
-                </div>
-                <div className="prod-body">
-                  <div className="prod-vendor">{p.vendor}</div>
-                  <div className="prod-name">{p.name}</div>
-                  <div className="prod-rating">
-                    <span className="stars-ico">{'★'.repeat(Math.floor(p.rating))}</span>
-                    <span className="rcount">({p.reviews.toLocaleString()})</span>
+              ))
+            ) : (
+              products.map((p) => (
+                <div key={p.id} className="prod-card">
+                  <div className="prod-badges">
+                    <span className={`badge ${p.badge}`}>{p.badgeLabel}</span>
+                    {p.isNew && <span className="badge b-new">New</span>}
                   </div>
-                  <div className="prod-price-atc">
-                    <div className="prod-prices-row">
-                      <span className="price-now">&#8377;{p.price.toLocaleString()}</span>
-                      <span className="price-was">&#8377;{p.compare.toLocaleString()}</span>
-                      <span className="price-save">{p.off}</span>
+                  <button className="wl-ico" aria-label="Wishlist">
+                    <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+                  </button>
+                  <div className="prod-img-wrap">
+                    <Link href={`/product/${p.slug}`}>
+                      <Image src={p.img} alt={p.name} width={300} height={300} className="prod-img" style={{ cursor: 'pointer' }} />
+                    </Link>
+                  </div>
+                  <div className="prod-body">
+                    <div className="prod-vendor">{p.vendor}</div>
+                    <Link href={`/product/${p.slug}`} style={{ textDecoration: 'none' }}>
+                      <div className="prod-name" style={{ cursor: 'pointer' }}>{p.name}</div>
+                    </Link>
+                    <div className="prod-rating">
+                      <span className="stars-ico">{'★'.repeat(Math.floor(p.rating))}</span>
+                      <span className="rcount">({p.reviews.toLocaleString()})</span>
                     </div>
-                    <div className="prod-atc-row">
-                      {getQty(p.id) === 0 ? (
-                        <button
-                          className="atc-btn-full"
-                          onClick={() => addToCart({ id: p.id, name: p.name, price: p.price, img: p.img })}
-                        >
-                          + Add to Cart
-                        </button>
-                      ) : (
-                        <div className="card-qty-ctrl-full">
+                    <div className="prod-price-atc">
+                      <div className="prod-prices-row">
+                        <span className="price-now">&#8377;{p.price.toLocaleString()}</span>
+                        <span className="price-was">&#8377;{p.compare.toLocaleString()}</span>
+                        <span className="price-save">{p.off}</span>
+                      </div>
+                      <div className="prod-atc-row">
+                        {getQty(p.id) === 0 ? (
                           <button
-                            className="card-qty-btn-full"
-                            onClick={() => updateQuantity(p.id, getQty(p.id) - 1)}
-                          >&#8722;</button>
-                          <span className="card-qty-num-full">{getQty(p.id)}</span>
-                          <button
-                            className="card-qty-btn-full"
-                            onClick={() => updateQuantity(p.id, getQty(p.id) + 1)}
-                          >+</button>
-                        </div>
-                      )}
+                            className="atc-btn-full"
+                            onClick={() => addToCart({ id: p.id, name: p.name, price: p.price, img: p.img })}
+                          >
+                            + Add to Cart
+                          </button>
+                        ) : (
+                          <div className="card-qty-ctrl-full">
+                            <button
+                              className="card-qty-btn-full"
+                              onClick={() => updateQuantity(p.id, getQty(p.id) - 1)}
+                            >&#8722;</button>
+                            <span className="card-qty-num-full">{getQty(p.id)}</span>
+                            <button
+                              className="card-qty-btn-full"
+                              onClick={() => updateQuantity(p.id, getQty(p.id) + 1)}
+                            >+</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>

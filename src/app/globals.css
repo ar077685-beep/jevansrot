@@ -2800,3 +2800,519 @@ body {
 .cart-right::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Skeleton Loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 0px, var(--green-pale) 50%, var(--bg2) 100%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+  border-radius: 4px;
+}
+
+.skel-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skel-title {
+  height: 28px;
+  margin-bottom: 12px;
+  width: 70%;
+}
+
+.skel-img {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  border-radius: var(--radius);
+}
+
+/* Specific component skeletons */
+.skel-hero-text {
+  max-width: 400px;
+}
+
+.skel-hero-text>div {
+  margin-bottom: 16px;
+}
+
+.skel-hero-img {
+  height: 400px;
+  border-radius: 16px;
+}
+
+.skel-prod-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skel-prod-img {
+  height: 240px;
+  border-radius: 8px;
+}
+
+.skel-cart-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.skel-cart-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+}
+
+.skel-cart-info {
+  flex: 1;
+}
+
+.skel-checkout-box {
+  height: 380px;
+  border-radius: 12px;
+}
+
+/* Product Detail Page (PDP) */
+.pdp-wrap {
+  padding: 40px 20px 80px;
+  background: var(--bg);
+}
+
+.pdp-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pdp-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+.pdp-img-col {
+  position: sticky;
+  top: 100px;
+  background: var(--bg2);
+  border-radius: 20px;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid var(--border);
+}
+
+.pdp-main-img {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.pdp-info-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdp-vendor {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.pdp-title {
+  font-family: var(--fh);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.pdp-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.pdp-price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.pdp-price-now {
+  font-family: var(--fh);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+.pdp-price-was {
+  font-size: 20px;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.pdp-price-save {
+  background: var(--red-light);
+  color: var(--red);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pdp-action-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.pdp-atc-btn {
+  background: var(--green-dark);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 4px 12px rgba(26, 92, 51, 0.2);
+}
+
+.pdp-atc-btn:hover {
+  background: var(--green-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(26, 92, 51, 0.3);
+}
+
+.pdp-section {
+  margin-bottom: 32px;
+}
+
+.pdp-section h3 {
+  font-family: var(--fh);
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdp-desc {
+  font-size: 15px;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+
+.pdp-list {
+  list-style: none;
+}
+
+.pdp-list li {
+  font-size: 14px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+  padding-left: 24px;
+  position: relative;
+}
+
+.pdp-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* E-Commerce Redesign PDP */
+.bc-nav {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.bc-nav a {
+  color: var(--green);
+  text-decoration: none;
+}
+
+.bc-nav a:hover {
+  text-decoration: underline;
+}
+
+.bc-sep {
+  margin: 0 8px;
+}
+
+.ecom-pdp-inner {
+  display: flex;
+  gap: 40px;
+}
+
+@media (max-width: 900px) {
+  .ecom-pdp-inner {
+    flex-direction: column;
+  }
+}
+
+.ecom-img-col {
+  width: 40%;
+  display: flex;
+  gap: 16px;
+  position: sticky;
+  top: 100px;
+  align-self: start;
+}
+
+.ecom-thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ecom-thumb {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ecom-thumb:hover {
+  border-color: var(--green);
+}
+
+.ecom-main-img-box {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.ecom-main-img-box img {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  transition: transform 0.3s;
+}
+
+.ecom-main-img-box:hover img {
+  transform: scale(1.1);
+}
+
+.ecom-info-col {
+  width: 60%;
+}
+
+@media (max-width: 900px) {
+
+  .ecom-img-col,
+  .ecom-info-col {
+    width: 100%;
+  }
+}
+
+.ecom-title {
+  font-family: var(--fh);
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.ecom-rating-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.ecom-rating-badge {
+  background: var(--green);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ecom-rating-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: #fff;
+}
+
+.ecom-price-box {
+  margin-bottom: 24px;
+}
+
+.ecom-price-now {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.ecom-price-was {
+  font-size: 16px;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  margin-left: 12px;
+}
+
+.ecom-price-off {
+  font-size: 16px;
+  color: var(--green);
+  font-weight: 700;
+  margin-left: 12px;
+}
+
+.ecom-tax-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.ecom-offers {
+  margin-bottom: 32px;
+}
+
+.ecom-offers h4 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.ecom-offer-item {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.ecom-offer-item span:first-child {
+  color: var(--green);
+}
+
+.ecom-highlights-row {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 32px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.ecom-hl-label {
+  color: var(--text-muted);
+  font-size: 14px;
+  width: 80px;
+}
+
+.ecom-hl-list {
+  list-style: disc;
+  padding-left: 16px;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.ecom-actions {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.btn-atc,
+.btn-buy {
+  flex: 1;
+  padding: 16px;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.btn-atc {
+  background: #ff9f00;
+  /* Flipkart Orange/Yellow */
+  color: #fff;
+}
+
+.btn-buy {
+  background: #fb641b;
+  /* Flipkart solid orange */
+  color: #fff;
+}
+
+.btn-atc:hover,
+.btn-buy:hover {
+  opacity: 0.9;
+}
+
+.ecom-desc-box {
+  margin-top: 40px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ecom-desc-box h3 {
+  font-size: 20px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ecom-desc-box p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-mid);
+  margin-bottom: 24px;
+}
