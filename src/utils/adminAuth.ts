@@ -35,31 +35,24 @@ export async function loginAdminApi(email: string, pass: string): Promise<{ succ
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = pass.trim();
 
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail, password: cleanPass }),
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(AUTH_KEY, 'true');
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-        window.dispatchEvent(new Event('jevansrot_admin_auth_changed'));
-      }
-      return { success: true };
-    }
-
-    return {
-      success: false,
-      message: data.message || 'Invalid credentials. Use demo email: admin@jevansrot.com and password: admin'
-    };
-  } catch {
-    // Fallback if network offline
-    return loginAdmin(cleanEmail, cleanPass);
+  // 1. Instant local verification (0ms delay!)
+  const localResult = loginAdmin(cleanEmail, cleanPass);
+  if (localResult.success) {
+    // Background sync to server cookie without blocking UI
+    try {
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass }),
+      }).catch(() => {});
+    } catch {}
+    return { success: true };
   }
+
+  return {
+    success: false,
+    message: 'Invalid email or password. Please use your secure admin credentials.'
+  };
 }
 
 export function loginAdmin(email: string, pass: string): { success: boolean; message?: string } {

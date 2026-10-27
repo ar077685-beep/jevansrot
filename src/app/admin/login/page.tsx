@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     loginAdminApi(email, password).then(res => {
       if (res.success) {
-        router.push('/admin');
+        window.location.href = '/admin/';
       } else {
         setError(res.message || 'Invalid credentials');
         setLoading(false);
