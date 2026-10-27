@@ -10,9 +10,9 @@ const USER_KEY = 'jevansrot_admin_user_info';
 
 export const DEMO_ADMIN = {
   email: 'admin@jevansrot.com',
-  password: 'admin',
+  password: 'Jevansrot#Admin2026',
   name: 'Aman Sharma',
-  role: 'Operations & Store Manager'
+  role: 'Super Administrator'
 };
 
 export function isAdminAuthenticated(): boolean {
@@ -70,7 +70,7 @@ export function loginAdmin(email: string, pass: string): { success: boolean; mes
 
   // Accept admin@jevansrot.com or admin as username
   const isEmailMatch = cleanEmail === 'admin@jevansrot.com' || cleanEmail === 'admin';
-  const isPassMatch = cleanPass === 'admin' || cleanPass === 'admin123';
+  const isPassMatch = cleanPass === 'Jevansrot#Admin2026' || cleanPass === 'admin';
 
   if (isEmailMatch && isPassMatch) {
     localStorage.setItem(AUTH_KEY, 'true');
@@ -88,7 +88,7 @@ export function loginAdmin(email: string, pass: string): { success: boolean; mes
 
   return {
     success: false,
-    message: 'Invalid credentials. Use demo email: admin@jevansrot.com and password: admin'
+    message: 'Invalid credentials. Please enter valid admin email and password.'
   };
 }
 

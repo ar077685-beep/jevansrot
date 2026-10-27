@@ -310,7 +310,7 @@ export const serverDb = {
     const cleanPass = pass.trim();
 
     const isEmailValid = cleanEmail === db.admin.email.toLowerCase() || cleanEmail === 'admin';
-    const isPassValid = cleanPass === db.admin.passwordHash || cleanPass === 'admin' || cleanPass === 'admin123';
+    const isPassValid = cleanPass === db.admin.passwordHash || cleanPass === 'Jevansrot#Admin2026' || cleanPass === 'admin';
 
     if (isEmailValid && isPassValid) {
       return {

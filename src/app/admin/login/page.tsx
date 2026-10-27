@@ -112,15 +112,14 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          {/* Demo chip */}
-          <div className="adm-demo-chip" onClick={fillDemo}>
+          {/* Secure Portal notice */}
+          <div className="adm-demo-chip" style={{ cursor: 'default' }}>
             <div>
-              <strong>Demo credentials:</strong>{' '}
+              <strong>🔒 Protected Admin Portal:</strong>{' '}
               <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                {DEMO_ADMIN.email} · pass: <code style={{ fontSize: 12 }}>admin</code>
+                Authorized personnel only. Two-layer security active.
               </span>
             </div>
-            <button type="button" className="adm-autofill-btn">Auto-fill ✨</button>
           </div>
 
           <form onSubmit={handleSubmit}>

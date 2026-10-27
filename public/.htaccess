@@ -1,46 +1,33 @@
-# Enable Rewrite Engine
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Force HTTPS
+  # 1. Force HTTPS
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # If requested path is an existing file or directory, serve it directly
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
+  # 2. Explicit clean routes
+  RewriteRule ^admin/login/?$ admin/login/index.html [L]
+  RewriteRule ^admin/orders/?$ admin/orders/index.html [L]
+  RewriteRule ^admin/inventory/?$ admin/inventory/index.html [L]
+  RewriteRule ^admin/customers/?$ admin/customers/index.html [L]
+  RewriteRule ^admin/analytics/?$ admin/analytics/index.html [L]
+  RewriteRule ^admin/settings/?$ admin/settings/index.html [L]
+  RewriteRule ^admin/?$ admin/index.html [L]
+  RewriteRule ^cart/?$ cart/index.html [L]
+  RewriteRule ^user/?$ user/index.html [L]
+
+  # 3. Serve real files directly
+  RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # Check if path + .html exists (e.g., /cart -> /cart.html, /admin -> /admin.html)
-  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
-  RewriteRule ^(.*)$ $1.html [L]
-
-  # Sub-folder check (e.g., /admin/orders -> /admin/orders.html)
-  RewriteCond %{REQUEST_FILENAME}.html -f
-  RewriteRule ^(.*)$ $1.html [L]
-
-  # Fallback 404
+  # 4. Serve real directories with their index.html
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteCond %{REQUEST_FILENAME}/index.html -f
   RewriteRule ^ - [L]
 </IfModule>
 
 # Custom 404 page
 ErrorDocument 404 /404.html
-
-# Enable Gzip Compression
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
-</IfModule>
-
-# Browser Caching
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType image/jpg "access plus 1 month"
-  ExpiresByType image/jpeg "access plus 1 month"
-  ExpiresByType image/gif "access plus 1 month"
-  ExpiresByType image/png "access plus 1 month"
-  ExpiresByType image/webp "access plus 1 month"
-  ExpiresByType image/svg+xml "access plus 1 month"
-  ExpiresByType text/css "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
-</IfModule>
