@@ -45,9 +45,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const isLoginPage = pathname === '/admin/login';
+
   useEffect(() => {
     setMounted(true);
-    if (!isAdminAuthenticated()) { router.replace('/admin/login'); return; }
+    if (pathname === '/admin/login') return;
+
+    if (!isAdminAuthenticated()) {
+      router.replace('/admin/login');
+      return;
+    }
     setAdminUser(getAdminUser());
     const orders = getStoredOrders();
     setPendingCount(orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length);
@@ -58,19 +65,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
     window.addEventListener('jevansrot_orders_updated', handler);
     return () => window.removeEventListener('jevansrot_orders_updated', handler);
-  }, [router]);
+  }, [router, pathname]);
 
-  const handleLogout = () => { logoutAdmin(); router.replace('/admin/login'); };
+  const handleLogout = async () => {
+    await logoutAdmin();
+    router.replace('/admin/login');
+  };
 
-  // Don't render layout on login page
-  if (!mounted) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#081a0e', color: '#fff', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🌿</div>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Loading Admin Panel…</div>
+  // If on login page, directly render login page without sidebar or admin chrome
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  // Loading state when checking authentication
+  if (!mounted || !isAdminAuthenticated()) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#081a0e', color: '#fff', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🌿</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Loading Admin Panel…</div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin';
