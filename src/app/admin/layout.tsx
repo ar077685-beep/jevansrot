@@ -45,11 +45,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
-  const isLoginPage = pathname === '/admin/login';
+  const isLoginPage = Boolean(pathname && (pathname.startsWith('/admin/login') || pathname === '/admin/login/'));
 
   useEffect(() => {
     setMounted(true);
-    if (pathname === '/admin/login') return;
+    if (pathname && (pathname.startsWith('/admin/login') || pathname === '/admin/login/')) return;
 
     if (!isAdminAuthenticated()) {
       router.replace('/admin/login');
@@ -72,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.replace('/admin/login');
   };
 
-  // If on login page, directly render login page without sidebar or admin chrome
+  // If on login page, directly render login page without sidebar or delay
   if (isLoginPage) {
     return <>{children}</>;
   }
