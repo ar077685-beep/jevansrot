@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
 import { products as initialProducts } from '../data/products';
-import { getInventoryProducts, Product } from '../data/inventory';
+import { getInventoryProducts, fetchProductsFromServer, Product } from '../data/inventory';
 
 
 
@@ -91,10 +91,18 @@ export default function Home() {
   const [productList, setProductList] = useState<Product[]>(initialProducts);
 
   useEffect(() => {
+    // 1. Load initial local products
     setProductList(getInventoryProducts());
+
+    // 2. Fetch fresh products from MySQL server in background
+    fetchProductsFromServer().then(fresh => {
+      if (fresh && fresh.length) setProductList(fresh);
+    });
+
+    // 3. Listen for real-time inventory updates across tabs
     const handleInv = () => setProductList(getInventoryProducts());
     window.addEventListener('jevansrot_inventory_updated', handleInv);
-    const timer = setTimeout(() => setLoading(false), 1200);
+    const timer = setTimeout(() => setLoading(false), 800);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('jevansrot_inventory_updated', handleInv);
@@ -240,7 +248,13 @@ export default function Home() {
                   </button>
                   <div className="prod-img-wrap">
                     <Link href={`/product/${p.slug}`}>
-                      <Image src={p.img} alt={p.name} width={300} height={300} className="prod-img" style={{ cursor: 'pointer' }} />
+                      <img
+                        src={p.img || '/jevansrot-logo.svg'}
+                        alt={p.name}
+                        className="prod-img"
+                        style={{ cursor: 'pointer', width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
+                      />
                     </Link>
                   </div>
                   <div className="prod-body">

@@ -12,7 +12,7 @@ export function getInventoryProducts(): Product[] {
       return SEED_PRODUCTS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : SEED_PRODUCTS;
+    return Array.isArray(parsed) && parsed.length ? parsed : SEED_PRODUCTS;
   } catch {
     return SEED_PRODUCTS;
   }
@@ -25,21 +25,41 @@ export function saveInventoryProducts(products: Product[]): void {
 }
 
 export async function fetchProductsFromServer(): Promise<Product[]> {
+  // 1. Try PHP MySQL endpoint first (Live InfinityFree server)
   try {
-    const res = await fetch('/api/products');
-    if (!res.ok) throw new Error('API failed');
-    const data = await res.json();
-    if (data.success && Array.isArray(data.products)) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.products));
-        window.dispatchEvent(new Event('jevansrot_inventory_updated'));
+    const phpRes = await fetch('/api.php?action=get_products', { cache: 'no-store' });
+    if (phpRes.ok) {
+      const phpData = await phpRes.json();
+      if (phpData.success && Array.isArray(phpData.products) && phpData.products.length > 0) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(phpData.products));
+          window.dispatchEvent(new Event('jevansrot_inventory_updated'));
+        }
+        return phpData.products;
       }
-      return data.products;
     }
-    return getInventoryProducts();
   } catch {
-    return getInventoryProducts();
+    // ignore and fallback to Next.js API route
   }
+
+  // 2. Fallback to Next.js API route (Local Dev server)
+  try {
+    const res = await fetch('/api/products', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.products));
+          window.dispatchEvent(new Event('jevansrot_inventory_updated'));
+        }
+        return data.products;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  return getInventoryProducts();
 }
 
 export function addInventoryProduct(product: Omit<Product, 'id'>): Product {
@@ -49,15 +69,22 @@ export function addInventoryProduct(product: Omit<Product, 'id'>): Product {
     id: 'p' + Date.now(),
     slug: product.slug || product.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + product.price,
   };
-  saveInventoryProducts([newProduct, ...all]);
+  const updated = [newProduct, ...all];
+  saveInventoryProducts(updated);
 
-  // Sync to server
+  // Sync to MySQL via api.php & local dev API
   if (typeof window !== 'undefined') {
+    fetch('/api.php?action=save_product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newProduct),
+    }).catch(() => {});
+
     fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newProduct),
-    }).catch(err => console.error('Failed to sync product to server:', err));
+    }).catch(() => {});
   }
 
   return newProduct;
@@ -65,16 +92,29 @@ export function addInventoryProduct(product: Omit<Product, 'id'>): Product {
 
 export function updateInventoryProduct(id: string, updates: Partial<Product>): Product[] {
   const all = getInventoryProducts();
-  const updated = all.map(p => p.id === id ? { ...p, ...updates } : p);
+  let updatedProduct: Product | undefined;
+  const updated = all.map(p => {
+    if (p.id === id) {
+      updatedProduct = { ...p, ...updates };
+      return updatedProduct;
+    }
+    return p;
+  });
   saveInventoryProducts(updated);
 
-  // Sync to server
-  if (typeof window !== 'undefined') {
+  // Sync to MySQL via api.php & local dev API
+  if (typeof window !== 'undefined' && updatedProduct) {
+    fetch('/api.php?action=save_product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedProduct),
+    }).catch(err => console.error('Failed to sync product to PHP API:', err));
+
     fetch(`/api/products/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
-    }).catch(err => console.error('Failed to sync product update to server:', err));
+    }).catch(() => {});
   }
 
   return updated;
@@ -87,9 +127,8 @@ export function deleteInventoryProduct(id: string): Product[] {
 
   // Sync to server
   if (typeof window !== 'undefined') {
-    fetch(`/api/products/${id}`, {
-      method: 'DELETE',
-    }).catch(err => console.error('Failed to sync product deletion to server:', err));
+    fetch(`/api.php?action=delete_product&id=${encodeURIComponent(id)}`).catch(() => {});
+    fetch(`/api/products/${id}`, { method: 'DELETE' }).catch(() => {});
   }
 
   return updated;
@@ -98,7 +137,8 @@ export function deleteInventoryProduct(id: string): Product[] {
 export function resetInventoryToDefault(): Product[] {
   saveInventoryProducts(SEED_PRODUCTS);
   if (typeof window !== 'undefined') {
-    fetch('/api/products/reset', { method: 'POST' }).catch(err => console.error(err));
+    fetch('/api.php?action=reset_products').catch(() => {});
+    fetch('/api/products/reset', { method: 'POST' }).catch(() => {});
   }
   return SEED_PRODUCTS;
 }
@@ -113,7 +153,7 @@ export const EMPTY_PRODUCT: Omit<Product, 'id'> = {
   off: '',
   badge: 'b-pop',
   badgeLabel: 'Popular',
-  rating: 4.5,
+  rating: 4.8,
   reviews: 0,
   isNew: false,
   description: '',

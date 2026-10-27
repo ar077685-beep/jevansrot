@@ -5,22 +5,53 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { Product } from '../data/products';
-import { getInventoryProducts } from '../data/inventory';
+import { getInventoryProducts, fetchProductsFromServer } from '../data/inventory';
 
 export default function ProductDetailClient({ product: initialProduct, slug }: { product?: Product; slug?: string }) {
   const { addToCart } = useCart();
   const router = useRouter();
-  const [product, setProduct] = useState<Product | undefined>(initialProduct);
-  const [loading, setLoading] = useState(!initialProduct);
+
+  // Helper to find latest product from inventory / local storage
+  const getLatest = (): Product | undefined => {
+    const inv = getInventoryProducts();
+    if (slug) {
+      const bySlug = inv.find(p => p.slug === slug || p.id === slug);
+      if (bySlug) return bySlug;
+    }
+    if (initialProduct?.id) {
+      const byId = inv.find(p => p.id === initialProduct.id);
+      if (byId) return byId;
+    }
+    return initialProduct;
+  };
+
+  const [product, setProduct] = useState<Product | undefined>(getLatest);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!initialProduct && slug) {
-      const inv = getInventoryProducts();
-      const found = inv.find(p => p.slug === slug || p.id === slug);
-      setProduct(found);
-      setLoading(false);
-    }
+    // 1. Check local inventory storage immediately
+    const local = getLatest();
+    if (local) setProduct(local);
+
+    // 2. Fetch fresh from server (MySQL via api.php)
+    fetchProductsFromServer().then(srv => {
+      if (srv && srv.length) {
+        let found: Product | undefined;
+        if (slug) found = srv.find(p => p.slug === slug || p.id === slug);
+        if (!found && initialProduct?.id) found = srv.find(p => p.id === initialProduct.id);
+        if (found) setProduct(found);
+      }
+    });
+
+    // 3. Listen for real-time inventory updates across tabs / admin actions
+    const handleInv = () => {
+      const updated = getLatest();
+      if (updated) setProduct(updated);
+    };
+    window.addEventListener('jevansrot_inventory_updated', handleInv);
+    return () => window.removeEventListener('jevansrot_inventory_updated', handleInv);
   }, [initialProduct, slug]);
+
   const handleBuyNow = () => {
     if (!product) return;
     addToCart({ id: product.id, name: product.name, price: product.price, img: product.img });
@@ -55,20 +86,29 @@ export default function ProductDetailClient({ product: initialProduct, slug }: {
         <div className="ecom-img-col">
           <div className="ecom-thumbs">
             <div className="ecom-thumb" style={{ borderColor: 'var(--green)' }}>
-              <Image src={product.img} alt={product.name} width={64} height={64} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+              <img
+                src={product.img || '/jevansrot-logo.svg'}
+                alt={product.name}
+                style={{ objectFit: 'cover', width: '100%', height: '100%', borderRadius: 6 }}
+                onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
+              />
             </div>
-            {/* Mock extra thumbnails */}
+            {/* Secondary thumbnail */}
             <div className="ecom-thumb">
-              <Image src={product.img} alt={product.name} width={64} height={64} style={{ objectFit: 'cover', width: '100%', height: '100%', opacity: 0.7 }} />
+              <img
+                src={product.img || '/jevansrot-logo.svg'}
+                alt={product.name}
+                style={{ objectFit: 'cover', width: '100%', height: '100%', opacity: 0.7, borderRadius: 6 }}
+                onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
+              />
             </div>
           </div>
           <div className="ecom-main-img-box">
-            <Image
-              src={product.img}
+            <img
+              src={product.img || '/jevansrot-logo.svg'}
               alt={product.name}
-              width={400}
-              height={400}
-              priority
+              style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain' }}
+              onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
             />
           </div>
         </div>
@@ -93,13 +133,16 @@ export default function ProductDetailClient({ product: initialProduct, slug }: {
               <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>
             </div>
             <span style={{ color: 'var(--text-muted)' }}>{product.reviews.toLocaleString()} Ratings & Reviews</span>
-            <Image src="/fssai.png" alt="FSSAI" width={60} height={20} style={{ marginLeft: '16px', opacity: 0 }} /> {/* Placeholder for fssai logo if needed */}
           </div>
 
           <div className="ecom-price-box">
             <span className="ecom-price-now">₹{product.price.toLocaleString()}</span>
-            <span className="ecom-price-was">₹{product.compare.toLocaleString()}</span>
-            <span className="ecom-price-off">{product.off}</span>
+            {product.compare > product.price && (
+              <span className="ecom-price-was">₹{product.compare.toLocaleString()}</span>
+            )}
+            {product.off && (
+              <span className="ecom-price-off">{product.off}</span>
+            )}
             <span className="ecom-tax-note">Inclusive of all taxes</span>
           </div>
 
@@ -115,33 +158,13 @@ export default function ProductDetailClient({ product: initialProduct, slug }: {
                 <span>Buy a combo pack to get an exclusive discount on your order. <a href="#" style={{ color: 'var(--green)' }}>T&C</a></span>
               </div>
             )}
-            <div className="ecom-offer-item">
-              <span>🏷️ Special Price</span>
-              <span>Get a discount of {product.off} on this product. <a href="#" style={{ color: 'var(--green)' }}>T&C</a></span>
-            </div>
-          </div>
-
-          {/* Delivery
-          <div className="deliver-check-card" style={{ background: 'transparent', padding: '0 0 24px', border: 'none', borderBottom: '1px solid var(--border)', borderRadius: 0, boxShadow: 'none' }}>
-            <h4 style={{ fontSize: '14px', color: 'var(--text-muted)', width: '80px', display: 'inline-block' }}>Delivery</h4>
-            <div className="pincode-row" style={{ display: 'inline-flex', width: 'auto' }}>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="Enter Delivery Pincode"
-                value={pincode}
-                onChange={e => { setPincode(e.target.value); setPincodeChecked(false); }}
-                style={{ background: '#fff', border: 'none', borderBottom: '2px solid var(--green)', borderRadius: 0, padding: '8px 0', width: '200px' }}
-              />
-              <button onClick={() => { if (pincode.length === 6) setPincodeChecked(true); }} style={{ background: 'none', color: 'var(--green)', padding: '0 16px' }}>Check</button>
-            </div>
-            {pincodeChecked && (
-              <div className="deliver-result" style={{ marginLeft: '84px', marginTop: '12px', background: 'transparent', padding: 0 }}>
-                Delivery by <strong>{new Date(Date.now() + 3*24*60*60*1000).toLocaleDateString()}</strong> | <span style={{ color: 'var(--green)' }}>Free</span>
+            {product.off && (
+              <div className="ecom-offer-item">
+                <span>🏷️ Special Price</span>
+                <span>Get a discount of {product.off} on this product. <a href="#" style={{ color: 'var(--green)' }}>T&C</a></span>
               </div>
             )}
           </div>
-          */}
 
           {/* Highlights */}
           {product.benefits && product.benefits.length > 0 && (
@@ -190,11 +213,11 @@ export default function ProductDetailClient({ product: initialProduct, slug }: {
 
           <div className="ecom-desc-box">
             <h3>Product Description</h3>
-            <p>{product.description}</p>
+            <p style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>{product.description}</p>
 
             {product.ingredients && product.ingredients.length > 0 && (
               <>
-                <h4 style={{ marginBottom: '12px' }}>Key Ingredients</h4>
+                <h4 style={{ marginBottom: '12px', marginTop: '20px' }}>Key Ingredients</h4>
                 <ul style={{ listStyle: 'disc', paddingLeft: '24px', fontSize: '15px', color: 'var(--text-mid)', marginBottom: '24px' }}>
                   {product.ingredients.map((ing, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{ing}</li>)}
                 </ul>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Jevansrot Sciences - InfinityFree MySQL Backend API
- * Automatically deployed to htdocs/ via GitHub Actions
+ * Automatically deployed to htdocs/ via GitHub Actions / FTP
  */
 
 header('Content-Type: application/json');
@@ -60,25 +60,223 @@ function init_tables($conn) {
             id VARCHAR(64) PRIMARY KEY,
             slug VARCHAR(128) NOT NULL UNIQUE,
             name VARCHAR(255) NOT NULL,
+            vendor VARCHAR(100) DEFAULT 'Jevansrot',
             price DECIMAL(10,2) NOT NULL,
-            original_price DECIMAL(10,2) NOT NULL,
+            compare_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            original_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             discount VARCHAR(50),
-            badge VARCHAR(100),
-            tagline VARCHAR(255),
+            badge VARCHAR(100) DEFAULT 'b-pop',
+            badge_label VARCHAR(100) DEFAULT 'Popular',
+            rating DECIMAL(3,1) DEFAULT 4.8,
+            reviews INT DEFAULT 0,
+            is_new TINYINT(1) DEFAULT 0,
             description TEXT,
             img TEXT,
+            ingredients_json TEXT,
+            benefits_json TEXT,
             in_stock TINYINT(1) DEFAULT 1,
             stock_count INT DEFAULT 100,
-            category VARCHAR(100) DEFAULT 'General'
+            category VARCHAR(100) DEFAULT 'General',
+            updated_at DATETIME
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 }
 
+function ensure_product_columns($conn) {
+    $needed = [
+        'vendor' => "VARCHAR(100) DEFAULT 'Jevansrot'",
+        'compare_price' => "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+        'badge_label' => "VARCHAR(100) DEFAULT 'Popular'",
+        'rating' => "DECIMAL(3,1) DEFAULT 4.8",
+        'reviews' => "INT DEFAULT 0",
+        'is_new' => "TINYINT(1) DEFAULT 0",
+        'ingredients_json' => "TEXT",
+        'benefits_json' => "TEXT",
+        'updated_at' => "DATETIME"
+    ];
+    $cols = [];
+    $res = $conn->query("SHOW COLUMNS FROM products");
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $cols[] = $r['Field'];
+        }
+        foreach ($needed as $col => $def) {
+            if (!in_array($col, $cols)) {
+                $conn->query("ALTER TABLE products ADD COLUMN $col $def");
+            }
+        }
+    }
+}
+
+function seed_default_products_if_empty($conn) {
+    $chk = $conn->query("SELECT COUNT(*) AS cnt FROM products");
+    if ($chk) {
+        $row = $chk->fetch_assoc();
+        if (intval($row['cnt']) > 0) return;
+    }
+
+    $seeds = [
+        [
+            'id' => 'p1',
+            'slug' => 'boost-3499',
+            'name' => 'Jevansrot Boost Medicine',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/boost-3499.webp',
+            'price' => 3499,
+            'compare' => 4999,
+            'off' => '30% OFF',
+            'badge' => 'b-pop',
+            'badgeLabel' => 'Popular',
+            'rating' => 4.8,
+            'reviews' => 1247,
+            'isNew' => 0,
+            'description' => 'A powerful daily boost formula designed to naturally enhance your energy levels, stamina, and overall vitality using our patented nano-technology.',
+            'ingredients' => ['Ashwagandha Extract', 'Ginseng', 'Vitamin B Complex'],
+            'benefits' => ['Boosts Energy', 'Improves Focus', 'Reduces Fatigue']
+        ],
+        [
+            'id' => 'p2',
+            'slug' => 'highpower-combo-3999',
+            'name' => 'High Power Combo',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/highpower-combo-3999.webp',
+            'price' => 3999,
+            'compare' => 5499,
+            'off' => '27% OFF',
+            'badge' => 'b-pop',
+            'badgeLabel' => 'Best Seller',
+            'rating' => 4.9,
+            'reviews' => 2143,
+            'isNew' => 0,
+            'description' => 'Our ultimate high-power combo pack for complete performance enhancement. Formulated for maximum absorption and long-lasting results.',
+            'ingredients' => ['Shilajit Gold', 'Safed Musli', 'Gokshura'],
+            'benefits' => ['Enhances Strength', 'Improves Endurance', 'Supports Muscle Recovery']
+        ],
+        [
+            'id' => 'p3',
+            'slug' => 'Insane-combo-2999',
+            'name' => 'Insane Power Combo',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/insan-combo-2999.webp',
+            'price' => 2999,
+            'compare' => 4499,
+            'off' => '33% OFF',
+            'badge' => 'b-off',
+            'badgeLabel' => 'Special Offer',
+            'rating' => 4.7,
+            'reviews' => 984,
+            'isNew' => 0,
+            'description' => 'Maximum strength combo delivering intense vitality and peak stamina. Ideal for active individuals seeking accelerated results naturally.',
+            'ingredients' => ['Tribulus Terrestris', 'Fenugreek', 'Zinc Citrate'],
+            'benefits' => ['Peak Performance', 'Rapid Absorption', 'Hormonal Balance']
+        ],
+        [
+            'id' => 'p4',
+            'slug' => 'medicine-1999',
+            'name' => 'Jevansrot Daily Vitality',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/medicine-1999.webp',
+            'price' => 1999,
+            'compare' => 2799,
+            'off' => '29% OFF',
+            'badge' => 'b-new',
+            'badgeLabel' => 'New Arrival',
+            'rating' => 4.6,
+            'reviews' => 672,
+            'isNew' => 1,
+            'description' => 'Gentle yet potent daily wellness capsule that supports immunity, mental clarity, and metabolic function with clean, standardized botanical extracts.',
+            'ingredients' => ['Amla Extract', 'Curcumin 95%', 'Moringa Leaf'],
+            'benefits' => ['Immunity Support', 'Antioxidant Defense', 'Cellular Health']
+        ],
+        [
+            'id' => 'p5',
+            'slug' => 'medicine-combo-3499',
+            'name' => 'Vitality & Stamina Combo',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/medicine-combo-3499.webp',
+            'price' => 3499,
+            'compare' => 4999,
+            'off' => '30% OFF',
+            'badge' => 'b-pop',
+            'badgeLabel' => 'Popular',
+            'rating' => 4.8,
+            'reviews' => 1432,
+            'isNew' => 0,
+            'description' => 'A synergistic pairing of our two top wellness formulations. Balances endocrine health while promoting continuous day-long vitality without caffeine crashes.',
+            'ingredients' => ['KSM-66 Ashwagandha', 'Cordyceps Militaris', 'Rhodiola Rosea'],
+            'benefits' => ['Stress Resilience', 'Physical Vitality', 'Sustained Energy']
+        ],
+        [
+            'id' => 'p6',
+            'slug' => 'oil-high-power-999',
+            'name' => 'High Power Herbal Oil',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/oil-999.webp',
+            'price' => 999,
+            'compare' => 1499,
+            'off' => '33% OFF',
+            'badge' => 'b-hot',
+            'badgeLabel' => 'Hot Seller',
+            'rating' => 4.9,
+            'reviews' => 3120,
+            'isNew' => 0,
+            'description' => 'Traditional Ayurvedic cold-pressed botanical massage oil infused with 28 rare herbs. Enhances blood flow, relieves tension, and revitalizes localized tissue.',
+            'ingredients' => ['Sesame Seed Oil', 'Mahanarayan Taila', 'Jyotishmati Oil', 'Eucalyptus'],
+            'benefits' => ['Deep Tissue Absorption', 'Muscle Relaxation', 'Circulation Support']
+        ],
+        [
+            'id' => 'p7',
+            'slug' => 'spray-1499',
+            'name' => 'Fast Relief Active Spray',
+            'vendor' => 'Jevansrot',
+            'img' => '/products/spray-1499.webp',
+            'price' => 1499,
+            'compare' => 1999,
+            'off' => '25% OFF',
+            'badge' => 'b-off',
+            'badgeLabel' => 'Instant Action',
+            'rating' => 4.7,
+            'reviews' => 845,
+            'isNew' => 0,
+            'description' => 'Instant transdermal nano-spray for rapid muscular comfort and fast-acting joint ease. Non-greasy, fast-drying, and leaves a pleasant natural herbal fragrance.',
+            'ingredients' => ['Menthol Crystals', 'Camphor Oil', 'Wintergreen Leaf', 'Clove Bud Extract'],
+            'benefits' => ['30-Second Relief', 'Non-Sticky Formula', 'Targeted Application']
+        ]
+    ];
+
+    foreach ($seeds as $s) {
+        $id = $conn->real_escape_string($s['id']);
+        $slug = $conn->real_escape_string($s['slug']);
+        $name = $conn->real_escape_string($s['name']);
+        $vendor = $conn->real_escape_string($s['vendor']);
+        $img = $conn->real_escape_string($s['img']);
+        $price = floatval($s['price']);
+        $compare = floatval($s['compare']);
+        $off = $conn->real_escape_string($s['off']);
+        $badge = $conn->real_escape_string($s['badge']);
+        $badge_label = $conn->real_escape_string($s['badgeLabel']);
+        $rating = floatval($s['rating']);
+        $reviews = intval($s['reviews']);
+        $is_new = intval($s['isNew']);
+        $desc = $conn->real_escape_string($s['description']);
+        $ing = $conn->real_escape_string(json_encode($s['ingredients']));
+        $ben = $conn->real_escape_string(json_encode($s['benefits']));
+        $now = date('Y-m-d H:i:s');
+
+        $sql = "INSERT INTO products (id, slug, name, vendor, img, price, compare_price, original_price, discount, badge, badge_label, rating, reviews, is_new, description, ingredients_json, benefits_json, updated_at)
+                VALUES ('$id', '$slug', '$name', '$vendor', '$img', $price, $compare, $compare, '$off', '$badge', '$badge_label', $rating, $reviews, $is_new, '$desc', '$ing', '$ben', '$now')
+                ON DUPLICATE KEY UPDATE updated_at = '$now'";
+        $conn->query($sql);
+    }
+}
+
 $action = $_GET['action'] ?? '';
 
+// Test / Status
 if ($action === 'test' || $action === 'status') {
     $conn = get_db_connection();
     if ($conn) {
+        ensure_product_columns($conn);
         $tables = [];
         $tRes = $conn->query("SHOW TABLES");
         if ($tRes) {
@@ -105,6 +303,9 @@ if ($action === 'test' || $action === 'status') {
     exit();
 }
 
+// -------------------------------------------------------------
+// ORDERS API
+// -------------------------------------------------------------
 if ($action === 'get_orders') {
     $conn = get_db_connection();
     if (!$conn) {
@@ -113,9 +314,11 @@ if ($action === 'get_orders') {
     }
     $res = $conn->query("SELECT * FROM orders ORDER BY created_at DESC");
     $orders = [];
-    while ($row = $res->fetch_assoc()) {
-        $row['items'] = json_decode($row['items_json'], true) ?: [];
-        $orders[] = $row;
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $row['items'] = json_decode($row['items_json'], true) ?: [];
+            $orders[] = $row;
+        }
     }
     $conn->close();
     echo json_encode(['success' => true, 'orders' => $orders]);
@@ -169,6 +372,146 @@ if ($action === 'save_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'message' => $conn->error]);
     }
     $conn->close();
+    exit();
+}
+
+// -------------------------------------------------------------
+// PRODUCTS API
+// -------------------------------------------------------------
+if ($action === 'get_products') {
+    $conn = get_db_connection();
+    if (!$conn) {
+        echo json_encode(['success' => false, 'message' => 'Database unavailable']);
+        exit();
+    }
+    ensure_product_columns($conn);
+    seed_default_products_if_empty($conn);
+
+    $res = $conn->query("SELECT * FROM products ORDER BY id ASC");
+    $products = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $products[] = [
+                'id' => $row['id'],
+                'slug' => $row['slug'],
+                'name' => $row['name'],
+                'vendor' => $row['vendor'] ?? 'Jevansrot',
+                'img' => $row['img'] ?? '',
+                'price' => floatval($row['price']),
+                'compare' => floatval(!empty($row['compare_price']) ? $row['compare_price'] : ($row['original_price'] ?? 0)),
+                'off' => $row['discount'] ?? '',
+                'badge' => $row['badge'] ?? 'b-pop',
+                'badgeLabel' => !empty($row['badge_label']) ? $row['badge_label'] : 'Popular',
+                'rating' => floatval($row['rating'] ?? 4.8),
+                'reviews' => intval($row['reviews'] ?? 0),
+                'isNew' => !empty($row['is_new']),
+                'description' => $row['description'] ?? '',
+                'ingredients' => json_decode($row['ingredients_json'] ?? '[]', true) ?: [],
+                'benefits' => json_decode($row['benefits_json'] ?? '[]', true) ?: []
+            ];
+        }
+    }
+    $conn->close();
+    echo json_encode(['success' => true, 'products' => $products]);
+    exit();
+}
+
+if ($action === 'save_product' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $raw = file_get_contents('php://input');
+    $p = json_decode($raw, true);
+    if (!$p || empty($p['id'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid product payload']);
+        exit();
+    }
+    $conn = get_db_connection();
+    if (!$conn) {
+        echo json_encode(['success' => false, 'message' => 'Database connection failed']);
+        exit();
+    }
+    ensure_product_columns($conn);
+
+    $id = $conn->real_escape_string($p['id']);
+    $slug = $conn->real_escape_string($p['slug'] ?? $id);
+    $name = $conn->real_escape_string($p['name'] ?? '');
+    $vendor = $conn->real_escape_string($p['vendor'] ?? 'Jevansrot');
+    $img = $conn->real_escape_string($p['img'] ?? '');
+    $price = floatval($p['price'] ?? 0);
+    $compare = floatval($p['compare'] ?? ($p['original_price'] ?? 0));
+    $off = $conn->real_escape_string($p['off'] ?? ($p['discount'] ?? ''));
+    $badge = $conn->real_escape_string($p['badge'] ?? 'b-pop');
+    $badge_label = $conn->real_escape_string($p['badgeLabel'] ?? ($p['badge_label'] ?? 'Popular'));
+    $rating = floatval($p['rating'] ?? 4.8);
+    $reviews = intval($p['reviews'] ?? 0);
+    $is_new = !empty($p['isNew']) ? 1 : 0;
+    $desc = $conn->real_escape_string($p['description'] ?? '');
+    $ing = $conn->real_escape_string(json_encode($p['ingredients'] ?? []));
+    $ben = $conn->real_escape_string(json_encode($p['benefits'] ?? []));
+    $now = date('Y-m-d H:i:s');
+
+    $sql = "INSERT INTO products (id, slug, name, vendor, img, price, compare_price, original_price, discount, badge, badge_label, rating, reviews, is_new, description, ingredients_json, benefits_json, updated_at)
+            VALUES ('$id', '$slug', '$name', '$vendor', '$img', $price, $compare, $compare, '$off', '$badge', '$badge_label', $rating, $reviews, $is_new, '$desc', '$ing', '$ben', '$now')
+            ON DUPLICATE KEY UPDATE
+                slug = '$slug',
+                name = '$name',
+                vendor = '$vendor',
+                img = '$img',
+                price = $price,
+                compare_price = $compare,
+                original_price = $compare,
+                discount = '$off',
+                badge = '$badge',
+                badge_label = '$badge_label',
+                rating = $rating,
+                reviews = $reviews,
+                is_new = $is_new,
+                description = '$desc',
+                ingredients_json = '$ing',
+                benefits_json = '$ben',
+                updated_at = '$now'";
+
+    if ($conn->query($sql)) {
+        echo json_encode(['success' => true, 'product_id' => $id]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $conn->error]);
+    }
+    $conn->close();
+    exit();
+}
+
+if ($action === 'delete_product') {
+    $id = $_GET['id'] ?? '';
+    if (!$id) {
+        $raw = file_get_contents('php://input');
+        $body = json_decode($raw, true);
+        $id = $body['id'] ?? '';
+    }
+    if (!$id) {
+        echo json_encode(['success' => false, 'message' => 'Missing product ID']);
+        exit();
+    }
+    $conn = get_db_connection();
+    if ($conn) {
+        $clean_id = $conn->real_escape_string($id);
+        $conn->query("DELETE FROM products WHERE id = '$clean_id'");
+        $conn->close();
+        echo json_encode(['success' => true, 'message' => 'Product deleted successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Database error']);
+    }
+    exit();
+}
+
+if ($action === 'reset_products') {
+    $conn = get_db_connection();
+    if ($conn) {
+        $conn->query("TRUNCATE TABLE products");
+        ensure_product_columns($conn);
+        seed_default_products_if_empty($conn);
+        $conn->close();
+        echo json_encode(['success' => true, 'message' => 'Products reset to default']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Database error']);
+    }
     exit();
 }
 
