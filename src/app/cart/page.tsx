@@ -2,17 +2,30 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
+import { createNewOrder } from '../../data/orders';
 import Navbar from '../../components/Navbar';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const router = useRouter();
+  const { cart, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const [coupon, setCoupon] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
-  const [pincode, setPincode] = useState('');
-  const [pincodeChecked, setPincodeChecked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [orderSubmitting, setOrderSubmitting] = useState(false);
+  const [shippingForm, setShippingForm] = useState({
+    name: 'Aman Verma',
+    phone: '+91 98765 43210',
+    email: 'aman.verma@example.com',
+    address: 'Plot 42, Green Avenue, Sector 15',
+    city: 'Gurugram',
+    state: 'Haryana',
+    pincode: '122001',
+    paymentMethod: 'UPI / QR' as 'UPI / QR' | 'Cash on Delivery'
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
@@ -31,6 +44,47 @@ export default function CartPage() {
       setCouponError('Invalid coupon code. Try HEALTHY10');
       setCouponApplied(false);
     }
+  };
+
+  const handlePlaceOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cart.length === 0) return;
+    setOrderSubmitting(true);
+    setTimeout(() => {
+      createNewOrder({
+        customer: {
+          name: shippingForm.name,
+          phone: shippingForm.phone,
+          email: shippingForm.email,
+          address: shippingForm.address,
+          city: shippingForm.city,
+          state: shippingForm.state,
+          pincode: shippingForm.pincode
+        },
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          img: item.img
+        })),
+        subtotal: cartTotal,
+        discount: discount,
+        shipping: delivery,
+        total: finalTotal,
+        advanceAmount: 0,
+        remainAmount: finalTotal,
+        paymentMethod: shippingForm.paymentMethod,
+        paymentStatus: 'Pending',
+        status: 'Pending',
+        notes: `Order placed via store checkout (${shippingForm.paymentMethod}). Payment set to Pending for admin verification.`
+      });
+
+      clearCart();
+      setCheckoutModalOpen(false);
+      setOrderSubmitting(false);
+      router.push('/user');
+    }, 500);
   };
 
   return (
@@ -253,6 +307,33 @@ export default function CartPage() {
                   Choose Checkout Method
                 </h3>
 
+                {/* Instant Online Order button */}
+                <button
+                  type="button"
+                  onClick={() => setCheckoutModalOpen(true)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    background: '#143d23',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    marginBottom: '16px',
+                    boxShadow: '0 4px 12px rgba(20,61,35,0.2)'
+                  }}
+                  id="cart-checkout-proceed-btn"
+                >
+                  <span>⚡</span>
+                  Place Order Now (₹{finalTotal.toLocaleString()})
+                </button>
+
                 {/* UPI QR */}
                 <div className="checkout-method">
                   <div className="checkout-method-header">
@@ -309,6 +390,135 @@ export default function CartPage() {
           )}
         </div>
       </div>
+
+      {/* Checkout Modal */}
+      {checkoutModalOpen && (
+        <div className="adm-modal-overlay" onClick={() => setCheckoutModalOpen(false)}>
+          <div className="adm-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="adm-modal-header">
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                  Complete Your Order
+                </h2>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                  Total Payable: <strong>₹{finalTotal.toLocaleString()}</strong> ({cart.reduce((a, b) => a + b.quantity, 0)} items)
+                </div>
+              </div>
+              <button className="adm-modal-close" onClick={() => setCheckoutModalOpen(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handlePlaceOrder}>
+              <div className="adm-modal-body">
+                <div className="adm-modal-section">
+                  <div className="adm-modal-section-title">Shipping & Contact Information</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Full Name</label>
+                      <input
+                        type="text"
+                        className="adm-input"
+                        required
+                        value={shippingForm.name}
+                        onChange={(e) => setShippingForm({ ...shippingForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Phone Number</label>
+                      <input
+                        type="text"
+                        className="adm-input"
+                        required
+                        value={shippingForm.phone}
+                        onChange={(e) => setShippingForm({ ...shippingForm, phone: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Street Address</label>
+                      <input
+                        type="text"
+                        className="adm-input"
+                        required
+                        value={shippingForm.address}
+                        onChange={(e) => setShippingForm({ ...shippingForm, address: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>City</label>
+                      <input
+                        type="text"
+                        className="adm-input"
+                        required
+                        value={shippingForm.city}
+                        onChange={(e) => setShippingForm({ ...shippingForm, city: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Pincode</label>
+                      <input
+                        type="text"
+                        className="adm-input"
+                        required
+                        value={shippingForm.pincode}
+                        onChange={(e) => setShippingForm({ ...shippingForm, pincode: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="adm-modal-section">
+                  <div className="adm-modal-section-title">Select Payment Mode</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ flex: '1 1 200px', border: `2px solid ${shippingForm.paymentMethod === 'UPI / QR' ? '#143d23' : '#e2e8f0'}`, borderRadius: 8, padding: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: shippingForm.paymentMethod === 'UPI / QR' ? '#edf5ef' : '#fff' }}>
+                      <input
+                        type="radio"
+                        name="payMethod"
+                        checked={shippingForm.paymentMethod === 'UPI / QR'}
+                        onChange={() => setShippingForm({ ...shippingForm, paymentMethod: 'UPI / QR' })}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>UPI / QR Payment</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>Instant verification</div>
+                      </div>
+                    </label>
+
+                    <label style={{ flex: '1 1 200px', border: `2px solid ${shippingForm.paymentMethod === 'Cash on Delivery' ? '#143d23' : '#e2e8f0'}`, borderRadius: 8, padding: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: shippingForm.paymentMethod === 'Cash on Delivery' ? '#edf5ef' : '#fff' }}>
+                      <input
+                        type="radio"
+                        name="payMethod"
+                        checked={shippingForm.paymentMethod === 'Cash on Delivery'}
+                        onChange={() => setShippingForm({ ...shippingForm, paymentMethod: 'Cash on Delivery' })}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>Cash on Delivery</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>Pay on doorstep</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="adm-modal-footer">
+                <button
+                  type="button"
+                  className="adm-btn-action"
+                  onClick={() => setCheckoutModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="adm-btn-primary"
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                  disabled={orderSubmitting}
+                  id="checkout-confirm-submit-btn"
+                >
+                  {orderSubmitting ? 'Confirming Order...' : `Confirm Order (₹${finalTotal.toLocaleString()})`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

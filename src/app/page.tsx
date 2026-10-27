@@ -5,7 +5,8 @@ import Footer from '../components/Footer';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { products as initialProducts } from '../data/products';
+import { getInventoryProducts, Product } from '../data/inventory';
 
 
 
@@ -87,10 +88,17 @@ export default function Home() {
   const { cart, addToCart, updateQuantity } = useCart();
   const getQty = (id: string) => cart.find(i => i.id === id)?.quantity ?? 0;
   const [loading, setLoading] = useState(true);
+  const [productList, setProductList] = useState<Product[]>(initialProducts);
 
   useEffect(() => {
+    setProductList(getInventoryProducts());
+    const handleInv = () => setProductList(getInventoryProducts());
+    window.addEventListener('jevansrot_inventory_updated', handleInv);
     const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('jevansrot_inventory_updated', handleInv);
+    };
   }, []);
 
   return (
@@ -221,7 +229,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              products.map((p) => (
+              productList.map((p) => (
                 <div key={p.id} className="prod-card">
                   <div className="prod-badges">
                     <span className={`badge ${p.badge}`}>{p.badgeLabel}</span>

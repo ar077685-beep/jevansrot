@@ -24,6 +24,10 @@ export default function Navbar() {
         <span>⭐ 4.8 Rating (50,000+ Customers)</span>
         <span className="sep">|</span>
         <a href="#products">Free Shipping Above ₹999 →</a>
+        <span className="sep">|</span>
+        <Link href="/user" style={{ color: '#f2cc6b', fontWeight: 600, textDecoration: 'none' }}>👤 User Orders</Link>
+        <span className="sep">|</span>
+        <Link href="/admin" style={{ color: '#ffffff', background: 'rgba(212,168,71,0.25)', border: '1px solid rgba(212,168,71,0.4)', padding: '2px 8px', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}>🛡️ Admin</Link>
       </div>
 
       {/* Header */}
@@ -53,6 +57,24 @@ export default function Navbar() {
 
           {/* Right Actions */}
           <div className="header-right">
+            {/* User Account / Orders */}
+            <Link href="/user" className="hbtn" aria-label="My Account and Orders" id="user-portal-btn" title="User Orders & Profile"
+              style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none',color:'inherit'}}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </Link>
+
+            {/* Admin Portal */}
+            <Link href="/admin" className="hbtn" aria-label="Admin Dashboard" id="admin-portal-nav-btn" title="Admin Portal"
+              style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none',color:'inherit'}}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </Link>
+
             <button className="hbtn" aria-label="Wishlist">
               <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
