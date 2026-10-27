@@ -66,8 +66,8 @@ export default function UserPortalPage() {
               <Link href="/cart" className="usr-btn-outline" id="user-to-cart-btn">
                 <span>🛒</span> View Cart
               </Link>
-              <Link href="/admin/login" className="usr-btn-outline" style={{ background: '#d4a847', color: '#143d23', borderColor: '#d4a847' }} id="user-to-admin-btn">
-                <span>🛡️</span> Admin Portal
+              <Link href="/" className="usr-btn-outline" id="user-to-store-btn">
+                <span>🛍️</span> Shop Supplements
               </Link>
             </div>
           </div>

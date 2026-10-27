@@ -26,8 +26,6 @@ export default function Navbar() {
         <a href="#products">Free Shipping Above ₹999 →</a>
         <span className="sep">|</span>
         <Link href="/user" style={{ color: '#f2cc6b', fontWeight: 600, textDecoration: 'none' }}>👤 User Orders</Link>
-        <span className="sep">|</span>
-        <Link href="/admin" style={{ color: '#ffffff', background: 'rgba(212,168,71,0.25)', border: '1px solid rgba(212,168,71,0.4)', padding: '2px 8px', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}>🛡️ Admin</Link>
       </div>
 
       {/* Header */}
@@ -63,15 +61,6 @@ export default function Navbar() {
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </Link>
-
-            {/* Admin Portal */}
-            <Link href="/admin" className="hbtn" aria-label="Admin Dashboard" id="admin-portal-nav-btn" title="Admin Portal"
-              style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none',color:'inherit'}}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
             </Link>
 
