@@ -3,15 +3,15 @@ import os
 import sys
 
 # FTP Credentials
-FTP_HOST = "ftpupload.net"
-FTP_USER = "if0_42519742"
-FTP_PASS = "jevansrot2026"
-FTP_PORT = 21
+FTP_HOST = os.environ.get("FTP_SERVER") or "ftpupload.net"
+FTP_USER = os.environ.get("FTP_USERNAME") or "if0_42519742"
+FTP_PASS = os.environ.get("FTP_PASSWORD") or "jevansrot2026"
+FTP_PORT = int(os.environ.get("FTP_PORT") or 21)
 
 # Directory to upload
 LOCAL_DIR = "out"
 # Remote directory (usually 'htdocs' on InfinityFree)
-REMOTE_DIR = "htdocs"
+REMOTE_DIR = os.environ.get("FTP_SERVER_DIR") or "htdocs"
 
 def upload_dir(ftp, local_path, remote_path):
     print(f"Uploading {local_path} to {remote_path}...")
