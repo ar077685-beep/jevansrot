@@ -88,14 +88,16 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   const openLoginModal = () => setIsLoginModalOpen(true);
   const closeLoginModal = () => setIsLoginModalOpen(false);
 
-  const loginWithGoogle = async (customData?: Partial<CustomerUser>): Promise<CustomerUser> => {
-    // Generate or use provided Google profile
+  const loginWithGoogle = async (googleData?: Partial<CustomerUser>): Promise<CustomerUser> => {
+    if (!googleData || !googleData.email) {
+      throw new Error('Google did not return a valid email address.');
+    }
     const googleUser: CustomerUser = {
-      id: customData?.id || 'usr_g_' + Math.random().toString(36).substring(2, 9),
-      name: customData?.name || 'Customer',
-      email: customData?.email || 'user@gmail.com',
-      avatar: customData?.avatar || '',
-      phone: customData?.phone || '',
+      id: googleData.id || 'usr_g_' + Math.random().toString(36).substring(2, 9),
+      name: googleData.name || googleData.email.split('@')[0],
+      email: googleData.email.toLowerCase().trim(),
+      avatar: googleData.avatar || '',
+      phone: googleData.phone || '',
       provider: 'google',
       createdAt: new Date().toISOString(),
     };

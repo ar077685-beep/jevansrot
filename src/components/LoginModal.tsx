@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUserAuth } from '../context/UserAuthContext';
 import './LoginModal.css';
+
+const GOOGLE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  '932161633019-jlslv30gub3v42k16okud86p8f89sj9t.apps.googleusercontent.com';
 
 interface GoogleIdTokenPayload {
   sub: string;
@@ -16,6 +20,16 @@ interface GoogleCredentialResponse {
   credential?: string;
 }
 
+interface TokenResponse {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface TokenClient {
+  requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
+}
+
 export default function LoginModal() {
   const { isLoginModalOpen, closeLoginModal, loginWithGoogle, loginWithEmail } = useUserAuth();
 
@@ -23,11 +37,15 @@ export default function LoginModal() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [gisRendered, setGisRendered] = useState(false);
 
   // Form fields
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const tokenClientRef = useRef<TokenClient | null>(null);
 
   // Reset state on close
   const handleClose = useCallback(() => {
@@ -37,55 +55,154 @@ export default function LoginModal() {
     closeLoginModal();
   }, [closeLoginModal]);
 
-  // Google Identity Services (GIS) dynamic initialization
+  // Decode Google JWT Credential Response
+  const handleGoogleCredential = useCallback(
+    async (response: GoogleCredentialResponse) => {
+      if (!response?.credential) {
+        setErrorMsg('Google did not return credentials. Please try again.');
+        return;
+      }
+      try {
+        setLoading(true);
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          window
+            .atob(base64)
+            .split('')
+            .map((c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload: GoogleIdTokenPayload = JSON.parse(jsonPayload);
+
+        if (!payload.email) {
+          throw new Error('No email found in Google account response.');
+        }
+
+        setSuccessMsg(`Authenticated as ${payload.name || payload.email}`);
+        await loginWithGoogle({
+          id: payload.sub,
+          name: payload.name || payload.given_name || payload.email.split('@')[0],
+          email: payload.email,
+          avatar: payload.picture,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Google authentication failed.';
+        setErrorMsg(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loginWithGoogle]
+  );
+
+  // Initialize Google Identity Services
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    if (!document.getElementById('google-gsi-client')) {
+    const setupGoogle = () => {
+      const googleObj = (window as unknown as {
+        google?: {
+          accounts?: {
+            id?: {
+              initialize: (cfg: unknown) => void;
+              renderButton: (parent: HTMLElement, options: unknown) => void;
+              prompt: () => void;
+            };
+            oauth2?: {
+              initTokenClient: (cfg: unknown) => TokenClient;
+            };
+          };
+        };
+      }).google;
+
+      if (!googleObj?.accounts) return;
+
+      // 1. Initialize ID client (JWT / Credential)
+      if (googleObj.accounts.id) {
+        try {
+          googleObj.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
+            auto_select: false,
+          });
+
+          if (googleBtnRef.current && isLoginModalOpen) {
+            googleObj.accounts.id.renderButton(googleBtnRef.current, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              shape: 'rectangular',
+              logo_alignment: 'left',
+              width: 350,
+            });
+            setGisRendered(true);
+          }
+        } catch (e) {
+          console.error('Google accounts.id init error', e);
+        }
+      }
+
+      // 2. Initialize OAuth2 Token Client (for custom button trigger)
+      if (googleObj.accounts.oauth2) {
+        try {
+          tokenClientRef.current = googleObj.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'openid email profile',
+            callback: async (tokenResponse: TokenResponse) => {
+              if (tokenResponse.error) {
+                setErrorMsg(`Google sign-in error: ${tokenResponse.error_description || tokenResponse.error}`);
+                setLoading(false);
+                return;
+              }
+              if (tokenResponse.access_token) {
+                try {
+                  setSuccessMsg('Fetching verified Google profile...');
+                  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                  });
+                  if (!res.ok) throw new Error('Failed to retrieve profile from Google');
+                  const data = await res.json();
+                  if (!data?.email) throw new Error('No email returned from Google');
+                  setSuccessMsg(`Welcome, ${data.name || data.email}`);
+                  await loginWithGoogle({
+                    id: data.sub,
+                    name: data.name || data.email.split('@')[0],
+                    email: data.email,
+                    avatar: data.picture,
+                  });
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : 'Google authentication failed.';
+                  setErrorMsg(msg);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            },
+            error_callback: (err: { message?: string }) => {
+              setErrorMsg(err?.message || 'Google OAuth window closed.');
+              setLoading(false);
+            },
+          });
+        } catch (e) {
+          console.error('Google oauth2 initTokenClient error', e);
+        }
+      }
+    };
+
+    if (document.getElementById('google-gsi-client')) {
+      setupGoogle();
+    } else {
       const script = document.createElement('script');
       script.id = 'google-gsi-client';
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        const googleObj = (window as unknown as { google?: { accounts?: { id?: { initialize: (cfg: unknown) => void } } } }).google;
-        if (clientId && googleObj?.accounts?.id) {
-          try {
-            googleObj.accounts.id.initialize({
-              client_id: clientId,
-              callback: (response: GoogleCredentialResponse) => {
-                if (response?.credential) {
-                  try {
-                    const base64Url = response.credential.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const jsonPayload = decodeURIComponent(
-                      window.atob(base64)
-                        .split('')
-                        .map((c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                        .join('')
-                    );
-                    const payload: GoogleIdTokenPayload = JSON.parse(jsonPayload);
-                    loginWithGoogle({
-                      id: payload.sub,
-                      name: payload.name || payload.given_name || 'Google User',
-                      email: payload.email,
-                      avatar: payload.picture,
-                    });
-                  } catch (e) {
-                    console.error('Failed to parse Google JWT credential', e);
-                  }
-                }
-              },
-            });
-          } catch (err) {
-            console.error('Google GIS initialization error', err);
-          }
-        }
-      };
+      script.onload = setupGoogle;
       document.body.appendChild(script);
     }
-  }, [loginWithGoogle]);
+  }, [isLoginModalOpen, handleGoogleCredential]);
 
   // Close on Escape key
   useEffect(() => {
@@ -98,37 +215,39 @@ export default function LoginModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoginModalOpen, handleClose]);
 
-  // Handle Google Login Click (At bottom)
-  const handleGoogleLogin = async () => {
+  // Handle Google Login Click (Triggers official Google OAuth popup)
+  const handleGoogleLogin = () => {
     setErrorMsg('');
     setLoading(true);
 
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const googleObj = (window as unknown as { google?: { accounts?: { id?: { prompt: () => void } } } }).google;
+    if (tokenClientRef.current) {
+      tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+      return;
+    }
 
-    // If real Google Client ID is configured, trigger Google prompt
-    if (clientId && googleObj?.accounts?.id) {
+    const googleObj = (window as unknown as {
+      google?: {
+        accounts?: {
+          id?: { prompt: () => void };
+        };
+      };
+    }).google;
+
+    if (googleObj?.accounts?.id) {
       try {
         googleObj.accounts.id.prompt();
         setLoading(false);
         return;
-      } catch {
-        // Continue to direct sign in
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Google sign-in error';
+        setErrorMsg(msg);
+        setLoading(false);
+        return;
       }
     }
 
-    // Direct Google sign in
-    try {
-      setSuccessMsg('Signing in with Google...');
-      setTimeout(async () => {
-        await loginWithGoogle();
-        setLoading(false);
-      }, 500);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Google sign-in failed. Please try again.';
-      setErrorMsg(message);
-      setLoading(false);
-    }
+    setErrorMsg('Connecting to Google services. Please try again in a moment...');
+    setLoading(false);
   };
 
   // Handle Email & Password Submit
@@ -202,7 +321,7 @@ export default function LoginModal() {
             </div>
           )}
 
-          {/* Normal Email & Password Form */}
+          {/* Email & Password Form */}
           <form onSubmit={handleEmailSubmit}>
             {isSignUp && (
               <div className="jm-form-group">
@@ -290,34 +409,52 @@ export default function LoginModal() {
             <span>OR</span>
           </div>
 
-          {/* Google Login at Bottom */}
-          <button
-            type="button"
-            className="jm-google-btn"
-            id="btn-google-login"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            <svg viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-              />
-            </svg>
-            <span>Continue with Google</span>
-          </button>
+          {/* Google Official OAuth at Bottom */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            {/* Rendered Google Official Button Container */}
+            <div
+              ref={googleBtnRef}
+              id="google-rendered-btn"
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                minHeight: '44px',
+                marginBottom: gisRendered ? 0 : 0,
+              }}
+            />
+
+            {/* Custom Google OAuth Button (Triggers Google OAuth2 popup) */}
+            {!gisRendered && (
+              <button
+                type="button"
+                className="jm-google-btn"
+                id="btn-google-login"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+              >
+                <svg viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
