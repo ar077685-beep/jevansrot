@@ -1,37 +1,109 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { Order, getStoredOrders, fetchOrdersFromServer, INITIAL_ORDERS } from '../../data/orders';
+import { useUserAuth } from '../../context/UserAuthContext';
+import { Order, getStoredOrders, fetchOrdersFromServer } from '../../data/orders';
 import '../admin/admin.css';
 
 export default function UserPortalPage() {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses'>('orders');
-  const [userProfile, setUserProfile] = useState({
-    name: 'Aman Verma',
-    phone: '+91 98765 43210',
-    email: 'aman.verma@example.com',
-    address: 'Plot 42, Green Avenue, Sector 15',
-    city: 'Gurugram',
-    state: 'Haryana',
-    pincode: '122001'
-  });
+  const { user, isLoggedIn, openLoginModal, logout, updateProfile } = useUserAuth();
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [activeTab, setActiveTab] = useState<'orders' | 'profile'>('orders');
+  const [guestOrderQuery, setGuestOrderQuery] = useState('');
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Clean user profile state (no demo ID hardcoded)
+  const [userProfile, setUserProfile] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: ''
+  });
+
+  // Load saved profile from localStorage and sync with logged-in user
   useEffect(() => {
-    setOrders(getStoredOrders());
-    fetchOrdersFromServer().then(srv => { if (srv && srv.length) setOrders(srv); });
-    const handleUpdate = () => setOrders(getStoredOrders());
+    try {
+      const saved = localStorage.getItem('jevansrot_user_shipping_profile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+          setUserProfile((prev) => ({
+            ...prev,
+            ...parsed,
+          }));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setUserProfile((prev) => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+    }
+  }, [user]);
+
+  // Load orders
+  useEffect(() => {
+    setAllOrders(getStoredOrders());
+    fetchOrdersFromServer().then(srv => { if (srv && srv.length) setAllOrders(srv); });
+    const handleUpdate = () => setAllOrders(getStoredOrders());
     window.addEventListener('jevansrot_orders_updated', handleUpdate);
     return () => window.removeEventListener('jevansrot_orders_updated', handleUpdate);
   }, []);
 
+  // Filter orders for the current user
+  const userOrders = useMemo(() => {
+    if (isLoggedIn && user?.email) {
+      const uEmail = user.email.toLowerCase().trim();
+      const uPhone = user.phone ? user.phone.replace(/[^0-9]/g, '') : '';
+      return allOrders.filter(ord => {
+        const ordEmail = ord.customer?.email?.toLowerCase().trim() || '';
+        const ordPhone = ord.customer?.phone ? ord.customer.phone.replace(/[^0-9]/g, '') : '';
+        return (uEmail && ordEmail === uEmail) || (uPhone && ordPhone && ordPhone === uPhone);
+      });
+    }
+
+    if (guestOrderQuery.trim()) {
+      const query = guestOrderQuery.toLowerCase().trim();
+      return allOrders.filter(ord =>
+        ord.orderNumber.toLowerCase().includes(query) ||
+        ord.customer.phone.replace(/[^0-9]/g, '').includes(query.replace(/[^0-9]/g, ''))
+      );
+    }
+
+    return [];
+  }, [isLoggedIn, user, allOrders, guestOrderQuery]);
+
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      localStorage.setItem('jevansrot_user_shipping_profile', JSON.stringify(userProfile));
+    } catch {
+      // ignore
+    }
+
+    if (isLoggedIn) {
+      updateProfile({
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone,
+      });
+    }
+
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 3000);
   };
@@ -54,20 +126,43 @@ export default function UserPortalPage() {
           <div className="usr-header-inner">
             <div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: 100, fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                <span>👤</span> Customer Account
+                <span>👤</span> {isLoggedIn ? (user?.provider === 'google' ? 'Google Account' : 'Customer Account') : 'Customer Portal'}
               </div>
-              <h1 className="usr-title">Welcome back, {userProfile.name}</h1>
+              <h1 className="usr-title">
+                {isLoggedIn
+                  ? `Welcome, ${user?.name || userProfile.name || 'Customer'}`
+                  : 'My Account & Orders'}
+              </h1>
               <p className="usr-subtitle">
-                Track your wellness orders, delivery schedules & health supplement subscriptions
+                Track shipments, view delivery schedules, and manage your saved address
               </p>
             </div>
 
             <div className="usr-quick-actions">
+              {!isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={openLoginModal}
+                  className="usr-btn-outline"
+                  style={{ background: '#d4a847', color: '#143d23', borderColor: '#d4a847', fontWeight: 700 }}
+                >
+                  <span>🔑</span> Log In / Sign Up
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="usr-btn-outline"
+                  style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#fff' }}
+                >
+                  <span>🚪</span> Sign Out
+                </button>
+              )}
               <Link href="/cart" className="usr-btn-outline" id="user-to-cart-btn">
                 <span>🛒</span> View Cart
               </Link>
               <Link href="/" className="usr-btn-outline" id="user-to-store-btn">
-                <span>🛍️</span> Shop Supplements
+                <span>🛍️</span> Shop
               </Link>
             </div>
           </div>
@@ -92,7 +187,7 @@ export default function UserPortalPage() {
               }}
               id="user-tab-orders"
             >
-              📦 My Orders ({orders.length})
+              📦 My Orders ({userOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('profile')}
@@ -109,33 +204,67 @@ export default function UserPortalPage() {
               }}
               id="user-tab-profile"
             >
-              👤 Profile & Preferences
+              👤 Profile &amp; Address
             </button>
           </div>
 
+          {/* Orders Section */}
           {activeTab === 'orders' ? (
             <div className="usr-orders-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>Recent Orders</h2>
-                  <p style={{ fontSize: 13, color: '#64748b' }}>Live status and delivery tracking for all your Jevansrot products</p>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>My Orders</h2>
+                  <p style={{ fontSize: 13, color: '#64748b' }}>Live delivery tracking &amp; purchase history</p>
                 </div>
                 <Link href="/#products" style={{ fontSize: 13, fontWeight: 600, color: '#1a5c33', textDecoration: 'none' }}>
-                  + Browse More Products →
+                  + Browse Catalog →
                 </Link>
               </div>
 
-              {orders.length === 0 ? (
+              {/* Guest Look-up Bar if not logged in */}
+              {!isLoggedIn && (
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '16px', marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 8 }}>
+                    Track an Order without Logging In
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      className="adm-input"
+                      style={{ flex: 1, minWidth: 220 }}
+                      placeholder="Enter Order Number (e.g. JEV-2026-...) or Mobile"
+                      value={guestOrderQuery}
+                      onChange={(e) => setGuestOrderQuery(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={openLoginModal}
+                      className="adm-btn-primary"
+                      style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap' }}
+                    >
+                      Log In to View All
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {userOrders.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
-                  <h3 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a' }}>No orders placed yet</h3>
-                  <p style={{ fontSize: 14, marginBottom: 20 }}>Explore our 100% natural nano-formulated health supplements.</p>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>
+                    No orders found
+                  </h3>
+                  <p style={{ fontSize: 14, marginBottom: 20 }}>
+                    {!isLoggedIn && !guestOrderQuery
+                      ? 'Please log in or enter your order number above to track your orders.'
+                      : 'You have not placed any orders yet. Discover our 100% plant-based supplements.'}
+                  </p>
                   <Link href="/#products" className="adm-btn-primary" style={{ display: 'inline-flex', width: 'auto', padding: '12px 28px' }}>
                     Shop Supplements Now
                   </Link>
                 </div>
               ) : (
-                orders.map((ord) => {
+                userOrders.map((ord) => {
                   const s1 = getStepStatus(ord.status, 0);
                   const s2 = getStepStatus(ord.status, 2);
                   const s3 = getStepStatus(ord.status, 3);
@@ -235,7 +364,7 @@ export default function UserPortalPage() {
                           </div>
                         ))}
 
-                        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14, marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14, marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <span style={{ fontSize: 12, color: '#64748b' }}>
                             Delivery to: <strong>{ord.customer.address}, {ord.customer.city}</strong>
                           </span>
@@ -254,23 +383,29 @@ export default function UserPortalPage() {
               )}
             </div>
           ) : (
+            /* Profile & Address Section */
             <div className="usr-orders-card">
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>Account & Shipping Info</h2>
-              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Update your saved address for one-click checkout across Jevansrot</p>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
+                Profile &amp; Delivery Address
+              </h2>
+              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
+                Manage your contact details and default delivery address for faster checkout
+              </p>
 
               {profileSaved && (
                 <div className="adm-error-box" style={{ background: '#dcfce7', borderColor: '#bbf7d0', color: '#15803d', marginBottom: 20 }}>
-                  ✓ Profile and delivery address updated successfully!
+                  ✓ Profile &amp; delivery address saved successfully!
                 </div>
               )}
 
               <form onSubmit={handleProfileSave}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
                   <div className="adm-form-group">
                     <label className="adm-form-label">Full Name</label>
                     <input
                       type="text"
                       className="adm-input"
+                      placeholder="e.g. Rohit Sharma"
                       value={userProfile.name}
                       onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
                       required
@@ -280,8 +415,9 @@ export default function UserPortalPage() {
                   <div className="adm-form-group">
                     <label className="adm-form-label">Phone Number</label>
                     <input
-                      type="text"
+                      type="tel"
                       className="adm-input"
+                      placeholder="10-digit mobile number"
                       value={userProfile.phone}
                       onChange={(e) => setUserProfile({ ...userProfile, phone: e.target.value })}
                       required
@@ -293,6 +429,7 @@ export default function UserPortalPage() {
                     <input
                       type="email"
                       className="adm-input"
+                      placeholder="name@example.com"
                       value={userProfile.email}
                       onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
                       required
@@ -304,6 +441,7 @@ export default function UserPortalPage() {
                     <input
                       type="text"
                       className="adm-input"
+                      placeholder="6-digit pincode"
                       value={userProfile.pincode}
                       onChange={(e) => setUserProfile({ ...userProfile, pincode: e.target.value })}
                       required
@@ -315,6 +453,7 @@ export default function UserPortalPage() {
                     <input
                       type="text"
                       className="adm-input"
+                      placeholder="Flat / House No., Building Name, Street"
                       value={userProfile.address}
                       onChange={(e) => setUserProfile({ ...userProfile, address: e.target.value })}
                       required
@@ -326,6 +465,7 @@ export default function UserPortalPage() {
                     <input
                       type="text"
                       className="adm-input"
+                      placeholder="City"
                       value={userProfile.city}
                       onChange={(e) => setUserProfile({ ...userProfile, city: e.target.value })}
                       required
@@ -337,6 +477,7 @@ export default function UserPortalPage() {
                     <input
                       type="text"
                       className="adm-input"
+                      placeholder="State"
                       value={userProfile.state}
                       onChange={(e) => setUserProfile({ ...userProfile, state: e.target.value })}
                       required
@@ -346,7 +487,7 @@ export default function UserPortalPage() {
 
                 <div style={{ marginTop: 24 }}>
                   <button type="submit" className="adm-btn-primary" style={{ width: 'auto', padding: '12px 28px' }}>
-                    Save Changes
+                    Save Address Details
                   </button>
                 </div>
               </form>

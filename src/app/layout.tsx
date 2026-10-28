@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { CartProvider } from '../context/CartContext';
+import { UserAuthProvider } from '../context/UserAuthContext';
+import LoginModal from '../components/LoginModal';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://jevansrot.com'), // Placeholder domain
@@ -37,7 +39,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <CartProvider>{children}</CartProvider>
+        <UserAuthProvider>
+          <CartProvider>
+            {children}
+            <LoginModal />
+          </CartProvider>
+        </UserAuthProvider>
       </body>
     </html>
   );

@@ -1,0 +1,239 @@
+/* ===================================================
+   Normal & Clean Client-Side Login Modal Styles
+   =================================================== */
+
+.jm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.jm-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.jm-modal {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.2s ease;
+  color: #1a202c;
+  font-family: var(--fb, "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif);
+}
+
+.jm-overlay.open .jm-modal {
+  transform: translateY(0) scale(1);
+}
+
+/* Close Button */
+.jm-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.jm-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Header */
+.jm-header {
+  padding: 24px 24px 6px;
+}
+
+.jm-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.jm-header p {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Body */
+.jm-body {
+  padding: 14px 24px 24px;
+}
+
+/* Form */
+.jm-form-group {
+  margin-bottom: 14px;
+}
+
+.jm-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.jm-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.jm-input:focus {
+  border-color: #143d23;
+  box-shadow: 0 0 0 3px rgba(20, 61, 35, 0.1);
+}
+
+.jm-submit-btn {
+  width: 100%;
+  padding: 11px 16px;
+  background: #143d23;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 6px;
+}
+
+.jm-submit-btn:hover {
+  background: #1a5c33;
+}
+
+.jm-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.jm-toggle-text {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.jm-toggle-btn {
+  background: none;
+  border: none;
+  color: #143d23;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  text-decoration: underline;
+}
+
+/* Divider */
+.jm-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 18px 0;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.jm-divider::before,
+.jm-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.jm-divider span {
+  padding: 0 10px;
+}
+
+/* Google Sign In Button at bottom */
+.jm-google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jm-google-btn:hover {
+  background: #f8fafd;
+  border-color: #c2c7ce;
+}
+
+.jm-google-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Alerts */
+.jm-alert {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jm-alert.error {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #b91c1c;
+}
+
+.jm-alert.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import {
   Order, OrderStatus, PaymentStatus,
   getStoredOrders, fetchOrdersFromServer, updateOrderStatus, updateOrderPaymentAndDetails, deleteOrder,
-  createNewOrder, resetOrdersToDefault, INITIAL_ORDERS
+  createNewOrder, INITIAL_ORDERS
 } from '../../../data/orders';
 
 const statusClass: Record<string, string> = {
@@ -352,8 +352,8 @@ export default function OrdersPage() {
           <p className="adm-page-desc">Track advance payments, remaining balances, and update order statuses in real-time</p>
         </div>
         <div className="adm-page-actions">
-          <button className="adm-btn adm-btn-secondary" onClick={() => { setOrders(resetOrdersToDefault()); notify('Reset to demo data'); }}>
-            ↺ Reset Demo
+          <button className="adm-btn adm-btn-secondary" onClick={() => { fetchOrdersFromServer().then(s => { if (s) setOrders(s); }); notify('Orders reloaded'); }}>
+            ↻ Refresh Orders
           </button>
           <button className="adm-btn adm-btn-primary" onClick={handleSimulate} id="orders-simulate-btn">
             + Place New Order (Pending)

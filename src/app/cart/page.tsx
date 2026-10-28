@@ -4,12 +4,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
+import { useUserAuth } from '../../context/UserAuthContext';
 import { createNewOrder } from '../../data/orders';
 import Navbar from '../../components/Navbar';
 
 export default function CartPage() {
   const router = useRouter();
   const { cart, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
+  const { user } = useUserAuth();
   const [coupon, setCoupon] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
@@ -17,15 +19,49 @@ export default function CartPage() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [shippingForm, setShippingForm] = useState({
-    name: 'Aman Verma',
-    phone: '+91 98765 43210',
-    email: 'aman.verma@example.com',
-    address: 'Plot 42, Green Avenue, Sector 15',
-    city: 'Gurugram',
-    state: 'Haryana',
-    pincode: '122001',
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
     paymentMethod: 'UPI / QR' as 'UPI / QR' | 'Cash on Delivery'
   });
+
+  useEffect(() => {
+    try {
+      const savedProfile = localStorage.getItem('jevansrot_user_shipping_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed) {
+          setShippingForm((prev) => ({
+            ...prev,
+            name: parsed.name || prev.name,
+            phone: parsed.phone || prev.phone,
+            email: parsed.email || prev.email,
+            address: parsed.address || prev.address,
+            city: parsed.city || prev.city,
+            state: parsed.state || prev.state,
+            pincode: parsed.pincode || prev.pincode,
+          }));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setShippingForm((prev) => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);

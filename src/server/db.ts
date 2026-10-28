@@ -78,6 +78,11 @@ function ensureDb(): DatabaseSchema {
   try {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
+    const demoIds = new Set(['ord-101', 'ord-102', 'ord-103', 'ord-104', 'ord-105', 'ord-106']);
+    if (parsed.orders && parsed.orders.some((o: any) => o && demoIds.has(o.id))) {
+      parsed.orders = parsed.orders.filter((o: any) => o && !demoIds.has(o.id));
+      fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+    }
     return parsed;
   } catch (err) {
     console.error('Failed to parse db.json, recreating defaults:', err);
