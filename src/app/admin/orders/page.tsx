@@ -740,7 +740,7 @@ export default function OrdersPage() {
                         <div className="adm-thumb-row">
                           {ord.items.slice(0, 2).map((item, i) => (
                             <div key={i} className="adm-thumb" title={item.name}>
-                              <Image src={item.img} alt={item.name} width={40} height={40} style={{ objectFit: 'cover' }} />
+                              <img src={item.img || '/jevansrot-logo.svg'} alt={item.name} width={40} height={40} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }} />
                               {item.quantity > 1 && <span className="adm-thumb-qty">{item.quantity}</span>}
                             </div>
                           ))}
@@ -1112,7 +1112,7 @@ export default function OrdersPage() {
                   <div className="adm-modal-section-title">Purchased Items</div>
                   {selected.items.map((item, i) => (
                     <div key={i} className="adm-modal-item">
-                      <Image src={item.img} alt={item.name} width={48} height={48} className="adm-modal-item-img" />
+                      <img src={item.img || '/jevansrot-logo.svg'} alt={item.name} width={48} height={48} className="adm-modal-item-img" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }} onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Qty: {item.quantity} × ₹{item.price.toLocaleString()}</div>

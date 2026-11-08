@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { syncCustomerProfile } from '../data/customers';
 
 export interface CustomerUser {
   id: string;
@@ -44,6 +45,8 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.email) {
           setUser(parsed);
+          // Sync existing session to database in background
+          syncCustomerProfile(parsed).catch(() => {});
         }
       }
     } catch (e) {
@@ -103,6 +106,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     };
 
     saveUserSession(googleUser);
+    syncCustomerProfile(googleUser).catch(err => console.warn('Customer sync error:', err));
     closeLoginModal();
     return googleUser;
   };
@@ -120,6 +124,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     };
 
     saveUserSession(emailUser);
+    syncCustomerProfile(emailUser).catch(err => console.warn('Customer sync error:', err));
     closeLoginModal();
     return emailUser;
   };
@@ -136,6 +141,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     };
 
     saveUserSession(phoneUser);
+    syncCustomerProfile(phoneUser).catch(err => console.warn('Customer sync error:', err));
     closeLoginModal();
     return phoneUser;
   };
@@ -148,6 +154,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const updated = { ...user, ...data };
     saveUserSession(updated);
+    syncCustomerProfile(updated).catch(err => console.warn('Customer sync error:', err));
   };
 
   return (

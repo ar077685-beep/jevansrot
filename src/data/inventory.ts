@@ -147,7 +147,7 @@ export const EMPTY_PRODUCT: Omit<Product, 'id'> = {
   slug: '',
   name: '',
   vendor: 'Jevansrot',
-  img: '/products/',
+  img: '',
   price: 0,
   compare: 0,
   off: '',
@@ -160,3 +160,192 @@ export const EMPTY_PRODUCT: Omit<Product, 'id'> = {
   ingredients: [],
   benefits: [],
 };
+
+/**
+ * Optimizes an image client-side to WebP/JPEG using Canvas.
+ * Keeps aspect ratio, max width/height 1200px, quality 85%.
+ */
+export async function optimizeImageFile(
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 1200,
+  quality = 0.85
+): Promise<{ blob: Blob; dataUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        reject(new Error('Failed to read image source'));
+        return;
+      }
+
+      // If SVG, no need to rasterize/compress
+      if (file.type === 'image/svg+xml' || file.name.endsWith('.svg')) {
+        resolve({ blob: file, dataUrl: src });
+        return;
+      }
+
+      const img = new (window as any).Image();
+      img.onload = () => {
+        let width = img.width || 800;
+        let height = img.height || 800;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve({ blob: file, dataUrl: src });
+          return;
+        }
+
+        // Smooth resampling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mime = 'image/webp';
+        canvas.toBlob(
+          (blob) => {
+            const dataUrl = canvas.toDataURL(mime, quality);
+            if (blob) {
+              resolve({ blob, dataUrl });
+            } else {
+              resolve({ blob: file, dataUrl });
+            }
+          },
+          mime,
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to process image'));
+      img.src = src;
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Uploads a product image from the admin inventory modal.
+ * 1. Optimizes client-side to lightweight WebP.
+ * 2. Uploads to InfinityFree PHP API (/api.php?action=upload_image).
+ * 3. Fallbacks to dev server API (/api/upload).
+ * 4. Fallbacks to optimized Base64 data URL if server is unreachable.
+ */
+export async function uploadProductImage(
+  file: File
+): Promise<{ success: boolean; url: string; filename?: string; message?: string }> {
+  let optimizedBlob: Blob = file;
+  let dataUrl = '';
+
+  try {
+    const opt = await optimizeImageFile(file);
+    optimizedBlob = opt.blob;
+    dataUrl = opt.dataUrl;
+  } catch (err) {
+    console.warn('Image optimization warning, continuing with raw file:', err);
+  }
+
+  const origExt = file.name.substring(file.name.lastIndexOf('.')) || '.webp';
+  const cleanBase = file.name
+    .substring(0, file.name.lastIndexOf('.'))
+    .replace(/[^a-zA-Z0-9_-]/g, '') || 'prod';
+  const fileName = `${cleanBase}_${Date.now()}${origExt === '.svg' ? '.svg' : '.webp'}`;
+
+  const formData = new FormData();
+  formData.append('image', optimizedBlob, fileName);
+  formData.append('name', fileName);
+
+  // 1. Try PHP API (InfinityFree / Live Hosting)
+  try {
+    const phpRes = await fetch('/api.php?action=upload_image', {
+      method: 'POST',
+      body: formData,
+    });
+    if (phpRes.ok) {
+      const data = await phpRes.json();
+      if (data && data.success && data.url) {
+        return {
+          success: true,
+          url: data.url,
+          filename: data.filename || fileName,
+          message: data.message || 'Image uploaded successfully to server',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('PHP upload unreachable, trying Next.js API route...', err);
+  }
+
+  // 1b. Try JSON Base64 to PHP API if FormData was blocked by server headers
+  if (dataUrl) {
+    try {
+      const phpB64Res = await fetch('/api.php?action=upload_image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl, name: fileName }),
+      });
+      if (phpB64Res.ok) {
+        const data = await phpB64Res.json();
+        if (data && data.success && data.url) {
+          return {
+            success: true,
+            url: data.url,
+            filename: data.filename || fileName,
+            message: 'Image uploaded successfully to server',
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Try Next.js local dev API (/api/upload)
+  try {
+    const devRes = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (devRes.ok) {
+      const data = await devRes.json();
+      if (data && data.success && data.url) {
+        return {
+          success: true,
+          url: data.url,
+          filename: data.filename || fileName,
+          message: 'Image uploaded successfully',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Dev upload route unreachable:', err);
+  }
+
+  // 3. Fallback: Optimized Data URL
+  // If backend upload is unavailable, the optimized base64 allows instant rendering and saving
+  if (dataUrl) {
+    return {
+      success: true,
+      url: dataUrl,
+      filename: fileName,
+      message: 'Image processed and saved locally',
+    };
+  }
+
+  return {
+    success: false,
+    url: '',
+    message: 'Could not upload image. Please try another file or enter an image path.',
+  };
+}

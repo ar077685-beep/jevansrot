@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import {
   Product, getInventoryProducts, fetchProductsFromServer, addInventoryProduct,
-  updateInventoryProduct, deleteInventoryProduct, resetInventoryToDefault, EMPTY_PRODUCT
+  updateInventoryProduct, deleteInventoryProduct, resetInventoryToDefault, EMPTY_PRODUCT,
+  uploadProductImage
 } from '../../../data/inventory';
 import '../admin.css';
 
@@ -17,8 +18,10 @@ const BADGE_OPTIONS = [
 type FormProduct = Omit<Product, 'id'> & { ingredients_text: string; benefits_text: string };
 
 function toForm(p: Omit<Product, 'id'>): FormProduct {
+  const cleanImg = (p.img === '/products/' || p.img === '/products') ? '' : (p.img ?? '');
   return {
     ...p,
+    img: cleanImg,
     ingredients_text: (p.ingredients ?? []).join(', '),
     benefits_text: (p.benefits ?? []).join(', '),
   };
@@ -47,6 +50,15 @@ export default function InventoryPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<FormProduct>(toForm(EMPTY_PRODUCT));
 
+  // Image Upload & Preview state
+  const [isUploadingImg, setIsUploadingImg] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [previewImg, setPreviewImg] = useState<string>('');
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   // View Modal state
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
 
@@ -69,23 +81,73 @@ export default function InventoryPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const handleImageFile = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      notify('Please select an image file (PNG, JPG, WEBP, GIF, SVG).');
+      return;
+    }
+
+    // Instantly display selected image in preview with 0 lag
+    try {
+      const localUrl = URL.createObjectURL(file);
+      setPreviewImg(localUrl);
+      setImageLoadError(false);
+    } catch {}
+
+    setIsUploadingImg(true);
+    setUploadProgress('Compressing & uploading image…');
+
+    try {
+      const res = await uploadProductImage(file);
+      if (res.success && res.url) {
+        setForm(prev => ({ ...prev, img: res.url }));
+        setPreviewImg(res.url);
+        setImageLoadError(false);
+        notify('✓ Image uploaded & applied successfully!');
+      } else {
+        notify(res.message || 'Image upload failed. Please try again.');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Failed to upload image');
+    } finally {
+      setIsUploadingImg(false);
+      setUploadProgress(null);
+    }
+  };
+
   // Open Add Product Modal
   const openAddModal = () => {
     setEditProduct(null);
     setForm(toForm(EMPTY_PRODUCT));
+    setPreviewImg('');
+    setImageLoadError(false);
+    setImageInputMode('upload');
+    setIsUploadingImg(false);
+    setUploadProgress(null);
     setIsModalOpen(true);
   };
 
   // Open Edit Product Modal
   const openEditModal = (p: Product) => {
     setEditProduct(p);
-    setForm(toForm(p));
+    const formProduct = toForm(p);
+    setForm(formProduct);
+    setPreviewImg(formProduct.img);
+    setImageLoadError(false);
+    setImageInputMode(formProduct.img && (formProduct.img.startsWith('http') || formProduct.img.startsWith('/products/')) ? 'url' : 'upload');
+    setIsUploadingImg(false);
+    setUploadProgress(null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditProduct(null);
+    setPreviewImg('');
+    setImageLoadError(false);
+    setIsUploadingImg(false);
+    setUploadProgress(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -407,11 +469,12 @@ export default function InventoryPage() {
                     {/* Thumbnail */}
                     <td>
                       <div style={{ position: 'relative', width: 48, height: 48 }}>
-                        <Image
-                          src={p.img}
+                        <img
+                          src={p.img || '/jevansrot-logo.svg'}
                           alt={p.name}
                           width={48}
                           height={48}
+                          style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }}
                           className="inv-table-thumb"
                           onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
                         />
@@ -674,36 +737,337 @@ export default function InventoryPage() {
                   </div>
                 </div>
 
-                {/* Section 3: Media & Live Preview */}
+                {/* Section 3: Media & Image Preview */}
                 <div className="adm-modal-section">
-                  <div className="adm-modal-section-title">3. Media &amp; Image Preview</div>
-                  <div className="inv-modal-grid-2" style={{ alignItems: 'center' }}>
-                    <div>
-                      <label className="adm-form-label">Image Path / URL *</label>
-                      <input
-                        className="adm-input"
-                        required
-                        value={f.img}
-                        onChange={e => set('img', e.target.value)}
-                        placeholder="/products/boost-3499.webp"
-                      />
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Recommended format: <code>/products/name.webp</code>
-                      </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                    <div className="adm-modal-section-title" style={{ margin: 0 }}>3. Product Media &amp; Image</div>
+                    
+                    {/* Mode Switcher */}
+                    <div className="inv-upload-pill-group">
+                      <button
+                        type="button"
+                        className={`inv-upload-pill-btn ${imageInputMode === 'upload' ? 'active' : ''}`}
+                        onClick={() => setImageInputMode('upload')}
+                      >
+                        📁 Upload Image File
+                      </button>
+                      <button
+                        type="button"
+                        className={`inv-upload-pill-btn ${imageInputMode === 'url' ? 'active' : ''}`}
+                        onClick={() => setImageInputMode('url')}
+                      >
+                        🔗 Image URL / Path
+                      </button>
                     </div>
+                  </div>
+
+                  <div className="inv-modal-grid-2" style={{ alignItems: 'flex-start', gap: 16 }}>
+                    {/* Left: Uploader or URL Input */}
                     <div>
-                      <label className="adm-form-label">Live Preview</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
-                          <img
-                            src={f.img || '/jevansrot-logo.svg'}
-                            alt="preview"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
+                      {imageInputMode === 'upload' ? (
+                        <div>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageFile(file);
+                              e.target.value = '';
+                            }}
                           />
+
+                          <div
+                            className={`inv-upload-zone ${isDragOver ? 'dragover' : ''}`}
+                            onClick={() => !isUploadingImg && fileInputRef.current?.click()}
+                            onDragOver={e => {
+                              e.preventDefault();
+                              setIsDragOver(true);
+                            }}
+                            onDragLeave={e => {
+                              e.preventDefault();
+                              setIsDragOver(false);
+                            }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              setIsDragOver(false);
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) handleImageFile(file);
+                            }}
+                          >
+                            {isUploadingImg ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 0' }}>
+                                <div style={{
+                                  width: 30, height: 30, border: '3px solid #bbf7d0', borderTopColor: 'var(--g700)',
+                                  borderRadius: '50%', animation: 'spin 0.8s linear infinite'
+                                }} />
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--g800)' }}>
+                                  {uploadProgress || 'Uploading Image…'}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                  Optimizing file size &amp; generating WebP
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="inv-upload-icon-wrap">
+                                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="inv-upload-title">Click to choose image or drag &amp; drop</div>
+                                  <div className="inv-upload-sub">PNG, JPG, WEBP, GIF, SVG (Auto-compressed)</div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {f.img && (
+                            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '7px 12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                                <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 14 }}>✓</span>
+                                <span style={{ fontSize: 11.5, color: '#15803d', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 210 }}>
+                                  {f.img.startsWith('data:') ? 'Image ready (Base64 WebP)' : f.img}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  style={{ background: 'none', border: 'none', color: 'var(--g700)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                                >
+                                  Replace
+                                </button>
+                                <span style={{ color: '#86efac' }}>|</span>
+                                <button
+                                  type="button"
+                                  onClick={() => set('img', '')}
+                                  style={{ background: 'none', border: 'none', color: '#b91c1c', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          {f.img ? 'Image preview rendered above' : 'Enter image path to preview'}
+                      ) : (
+                        <div>
+                          <label className="adm-form-label">Image Path or Remote URL *</label>
+                          <input
+                            className="adm-input"
+                            required
+                            value={f.img}
+                            onChange={e => set('img', e.target.value)}
+                            placeholder="/products/boost-3499.webp or https://..."
+                          />
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Enter local path like <code>/products/name.webp</code> or remote URL
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Live Preview Panel */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="adm-form-label" style={{ margin: 0 }}>Active Image Preview</label>
+                        {(previewImg || f.img) && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              color: '#15803d',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: 6,
+                              padding: '2px 8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="23 4 23 10 17 10" />
+                              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                            </svg>
+                            Re-upload
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                        padding: 12,
+                        background: imageLoadError ? '#fef2f2' : 'var(--surface2)',
+                        border: imageLoadError ? '1px solid #fecaca' : '1px solid var(--border)',
+                        borderRadius: 12,
+                        transition: 'all 0.2s ease'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                          {/* Image Box - Clickable to Reupload */}
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Click preview to re-upload image"
+                            style={{
+                              position: 'relative',
+                              width: 84,
+                              height: 84,
+                              borderRadius: 10,
+                              overflow: 'hidden',
+                              border: imageLoadError ? '2px dashed #ef4444' : '1px solid var(--border)',
+                              background: '#ffffff',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 5px rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <img
+                              src={previewImg || f.img || '/jevansrot-logo.svg'}
+                              alt="preview"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                              onLoad={() => {
+                                if (previewImg || f.img) setImageLoadError(false);
+                              }}
+                              onError={e => {
+                                setImageLoadError(true);
+                                (e.target as HTMLImageElement).src = '/jevansrot-logo.svg';
+                              }}
+                            />
+                            {/* Hover overlay hint */}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'rgba(0,0,0,0.5)',
+                                color: '#fff',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                opacity: 0,
+                                transition: 'opacity 0.15s ease',
+                                textAlign: 'center',
+                                padding: 4
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                              onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                            >
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginBottom: 2 }}>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                              </svg>
+                              Re-upload
+                            </div>
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {imageLoadError ? (
+                              <div>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                                  <span>⚠️ Image Preview Error</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#7f1d1d', marginBottom: 8, lineHeight: 1.3 }}>
+                                  Image path invalid or file missing. Click below to re-upload image.
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="adm-btn adm-btn-primary"
+                                  style={{
+                                    fontSize: 11.5,
+                                    padding: '5px 12px',
+                                    borderRadius: 6,
+                                    background: '#dc2626',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    cursor: 'pointer',
+                                    fontWeight: 700,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5
+                                  }}
+                                >
+                                  🔄 Re-upload Image Now
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                                  {isUploadingImg ? '⏳ Uploading Image…' : ((previewImg || f.img) ? '✓ Image Active' : 'No Image Chosen')}
+                                </div>
+                                <div style={{
+                                  fontSize: 11,
+                                  color: 'var(--text-muted)',
+                                  wordBreak: 'break-all',
+                                  lineHeight: 1.4,
+                                  maxHeight: 38,
+                                  overflow: 'hidden',
+                                  marginBottom: 6
+                                }}>
+                                  {f.img ? (f.img.startsWith('data:') ? 'Base64 WebP format' : (f.img.length > 55 ? f.img.substring(0, 52) + '…' : f.img)) : 'Choose an image file from your device.'}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    style={{
+                                      background: '#ffffff',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--text)',
+                                      padding: '3px 9px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    🔄 Re-upload
+                                  </button>
+                                  {(previewImg || f.img) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setForm(prev => ({ ...prev, img: '' }));
+                                        setPreviewImg('');
+                                        setImageLoadError(false);
+                                      }}
+                                      style={{
+                                        background: 'transparent',
+                                        border: '1px solid transparent',
+                                        color: '#ef4444',
+                                        padding: '3px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -793,12 +1157,12 @@ export default function InventoryPage() {
             </div>
             <div className="adm-modal-body">
               <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
-                <Image
-                  src={viewProduct.img}
+                <img
+                  src={viewProduct.img || '/jevansrot-logo.svg'}
                   alt={viewProduct.name}
                   width={120}
                   height={120}
-                  style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }}
+                  style={{ width: 120, height: 120, borderRadius: 12, objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }}
                   onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
                 />
                 <div>

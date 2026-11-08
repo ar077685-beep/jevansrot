@@ -3,21 +3,34 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { getStoredOrders, fetchOrdersFromServer, Order } from '../../data/orders';
 import { getInventoryProducts, fetchProductsFromServer } from '../../data/inventory';
+import { getStoredCustomers, fetchCustomersFromServer, CustomerRecord, CUSTOMERS_EVENT } from '../../data/customers';
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [productCount, setProductCount] = useState(0);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setOrders(getStoredOrders());
     setProductCount(getInventoryProducts().length);
+    setCustomers(getStoredCustomers());
+
     fetchOrdersFromServer().then(srv => { if (srv && srv.length) setOrders(srv); });
     fetchProductsFromServer().then(p => { if (p && p.length) setProductCount(p.length); });
-    const h = () => setOrders(getStoredOrders());
-    window.addEventListener('jevansrot_orders_updated', h);
-    return () => window.removeEventListener('jevansrot_orders_updated', h);
+    fetchCustomersFromServer().then(c => { if (c && c.length) setCustomers(c); });
+
+    const hOrders = () => setOrders(getStoredOrders());
+    const hCust = () => setCustomers(getStoredCustomers());
+
+    window.addEventListener('jevansrot_orders_updated', hOrders);
+    window.addEventListener(CUSTOMERS_EVENT, hCust);
+
+    return () => {
+      window.removeEventListener('jevansrot_orders_updated', hOrders);
+      window.removeEventListener(CUSTOMERS_EVENT, hCust);
+    };
   }, []);
 
   const stats = useMemo(() => {
@@ -31,8 +44,19 @@ export default function AdminDashboard() {
     const pending = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
     const delivered = orders.filter(o => o.status === 'Delivered').length;
     const cancelled = orders.filter(o => o.status === 'Cancelled').length;
-    // Unique customers
-    const uniqueCustomers = new Set(orders.map(o => o.customer.phone)).size;
+
+    // Unique customers across registered accounts & placed orders
+    const allCustKeys = new Set<string>();
+    customers.forEach(c => {
+      const key = (c.email || c.phone || '').toLowerCase().trim();
+      if (key) allCustKeys.add(key);
+    });
+    orders.forEach(o => {
+      const key = (o.customer.email || o.customer.phone || '').toLowerCase().trim();
+      if (key) allCustKeys.add(key);
+    });
+
+    const uniqueCustomers = Math.max(allCustKeys.size, customers.length);
     return {
       revenue,
       advanceCollected,
@@ -43,7 +67,7 @@ export default function AdminDashboard() {
       uniqueCustomers,
       total: orders.length
     };
-  }, [orders]);
+  }, [orders, customers]);
 
   const recentOrders = useMemo(() => orders.slice(0, 5), [orders]);
 
@@ -81,7 +105,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Total Revenue</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
             </div>
           </div>
@@ -94,8 +118,8 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Total Orders</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
               </svg>
             </div>
           </div>
@@ -108,7 +132,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Needs Attention</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
           </div>
@@ -121,7 +145,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Advance Collected</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                <rect x="2" y="4" width="20" height="16" rx="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
               </svg>
             </div>
           </div>
@@ -134,7 +158,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Remaining to Collect</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
           </div>
@@ -147,7 +171,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Products Live</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               </svg>
             </div>
           </div>
@@ -162,7 +186,7 @@ export default function AdminDashboard() {
             <div className="adm-kpi-label">Cancelled Orders</div>
             <div className="adm-kpi-icon">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
               </svg>
             </div>
           </div>

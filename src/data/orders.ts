@@ -98,6 +98,24 @@ export function saveOrders(orders: Order[]): void {
 }
 
 export async function fetchOrdersFromServer(): Promise<Order[]> {
+  // 1. Try InfinityFree PHP MySQL API
+  try {
+    const phpRes = await fetch('/api.php?action=get_orders', { cache: 'no-store' });
+    if (phpRes.ok) {
+      const phpData = await phpRes.json();
+      if (phpData.success && Array.isArray(phpData.orders)) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(phpData.orders));
+          window.dispatchEvent(new Event('jevansrot_orders_updated'));
+        }
+        return phpData.orders.map(normalizeOrder);
+      }
+    }
+  } catch {
+    // Continue to next fallback
+  }
+
+  // 2. Fallback to Next.js API route
   try {
     const res = await fetch('/api/orders');
     if (!res.ok) throw new Error('API request failed');
@@ -138,6 +156,12 @@ export function createNewOrder(orderData: Omit<Order, 'id' | 'orderNumber' | 'cr
 
   // Sync to server database in background
   if (typeof window !== 'undefined') {
+    fetch('/api.php?action=save_order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder),
+    }).catch(err => console.error('Failed to sync new order to PHP API:', err));
+
     fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

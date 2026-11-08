@@ -184,12 +184,14 @@ export default function CartPage() {
                     <div key={item.id} className="cart-item-card">
                       {/* Image */}
                       <div className="cart-item-img-wrap">
-                        <Image
-                          src={item.img}
+                        <img
+                          src={item.img || '/jevansrot-logo.svg'}
                           alt={item.name}
                           width={120}
                           height={120}
                           className="cart-item-img"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={e => { (e.target as HTMLImageElement).src = '/jevansrot-logo.svg'; }}
                         />
                       </div>
 

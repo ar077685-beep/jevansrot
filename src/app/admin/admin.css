@@ -1780,3 +1780,78 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================================================
+   ADMIN INVENTORY IMAGE UPLOADER STYLES
+   ======================================================== */
+.inv-upload-zone {
+  border: 2px dashed var(--border);
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 18px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.inv-upload-zone:hover,
+.inv-upload-zone.dragover {
+  border-color: var(--g600);
+  background: #f0fdf4;
+}
+
+.inv-upload-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e2f7ea;
+  color: var(--g700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inv-upload-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.inv-upload-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.inv-upload-pill-group {
+  display: inline-flex;
+  background: var(--surface2);
+  padding: 3px;
+  border-radius: 8px;
+  gap: 4px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+
+.inv-upload-pill-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inv-upload-pill-btn.active {
+  background: #ffffff;
+  color: var(--g800);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}

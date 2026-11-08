@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Order, INITIAL_ORDERS, OrderStatus, PaymentStatus } from '../data/orders';
 import { Product, products as INITIAL_PRODUCTS } from '../data/products';
+import { CustomerRecord } from '../data/customers';
 import { getMySqlPool } from './mysql';
 
 export interface StoreSettings {
@@ -18,6 +19,7 @@ export interface StoreSettings {
 export interface DatabaseSchema {
   orders: Order[];
   products: Product[];
+  customers?: CustomerRecord[];
   settings: StoreSettings;
   admin: {
     email: string;
@@ -63,6 +65,7 @@ function ensureDb(): DatabaseSchema {
         };
       }),
       products: INITIAL_PRODUCTS,
+      customers: [],
       settings: DEFAULT_SETTINGS,
       admin: {
         email: 'admin@jevansrot.com',
@@ -82,6 +85,9 @@ function ensureDb(): DatabaseSchema {
     if (parsed.orders && parsed.orders.some((o: any) => o && demoIds.has(o.id))) {
       parsed.orders = parsed.orders.filter((o: any) => o && !demoIds.has(o.id));
       fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+    }
+    if (!parsed.customers) {
+      parsed.customers = [];
     }
     return parsed;
   } catch (err) {
@@ -293,6 +299,45 @@ export const serverDb = {
     db.products = INITIAL_PRODUCTS;
     writeDb(db);
     return db.products;
+  },
+
+  /* ── Customers ── */
+  getCustomers(): CustomerRecord[] {
+    const db = ensureDb();
+    return db.customers || [];
+  },
+
+  upsertCustomer(cust: Partial<CustomerRecord> & { email: string; name?: string }): CustomerRecord {
+    const db = ensureDb();
+    if (!db.customers) db.customers = [];
+    const cleanEmail = cust.email.toLowerCase().trim();
+    const now = new Date().toISOString();
+    const idx = db.customers.findIndex(c => c.email.toLowerCase().trim() === cleanEmail);
+
+    if (idx >= 0) {
+      db.customers[idx] = {
+        ...db.customers[idx],
+        ...cust,
+        email: cleanEmail,
+        lastLogin: now,
+      };
+      writeDb(db);
+      return db.customers[idx];
+    } else {
+      const newCust: CustomerRecord = {
+        id: cust.id || 'usr_' + Date.now(),
+        name: cust.name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        phone: cust.phone || '',
+        avatar: cust.avatar || '',
+        provider: cust.provider || 'google',
+        createdAt: cust.createdAt || now,
+        lastLogin: now,
+      };
+      db.customers.unshift(newCust);
+      writeDb(db);
+      return newCust;
+    }
   },
 
   /* ── Settings ── */
