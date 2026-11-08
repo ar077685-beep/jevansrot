@@ -116,6 +116,15 @@ export default function InventoryPage() {
     }
   };
 
+  const triggerReupload = () => {
+    setImageInputMode('upload');
+    const input = fileInputRef.current || (document.getElementById('inv-file-upload-input') as HTMLInputElement | null);
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  };
+
   // Open Add Product Modal
   const openAddModal = () => {
     setEditProduct(null);
@@ -135,7 +144,7 @@ export default function InventoryPage() {
     setForm(formProduct);
     setPreviewImg(formProduct.img);
     setImageLoadError(false);
-    setImageInputMode(formProduct.img && (formProduct.img.startsWith('http') || formProduct.img.startsWith('/products/')) ? 'url' : 'upload');
+    setImageInputMode('upload'); // Default to upload so dropzone & re-upload are instantly accessible
     setIsUploadingImg(false);
     setUploadProgress(null);
     setIsModalOpen(true);
@@ -614,6 +623,22 @@ export default function InventoryPage() {
 
             {/* Modal Body Form */}
             <form onSubmit={handleSubmit}>
+              {/* Universal File Input (Always in DOM for Modal) */}
+              <input
+                id="inv-file-upload-input"
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onClick={e => {
+                  (e.target as HTMLInputElement).value = '';
+                }}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageFile(file);
+                }}
+              />
+
               <div className="adm-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
                 
                 {/* Section 1: Basic Details */}
@@ -766,21 +791,9 @@ export default function InventoryPage() {
                     <div>
                       {imageInputMode === 'upload' ? (
                         <div>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            style={{ display: 'none' }}
-                            accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageFile(file);
-                              e.target.value = '';
-                            }}
-                          />
-
                           <div
                             className={`inv-upload-zone ${isDragOver ? 'dragover' : ''}`}
-                            onClick={() => !isUploadingImg && fileInputRef.current?.click()}
+                            onClick={() => !isUploadingImg && triggerReupload()}
                             onDragOver={e => {
                               e.preventDefault();
                               setIsDragOver(true);
@@ -826,7 +839,7 @@ export default function InventoryPage() {
                             )}
                           </div>
 
-                          {f.img && (
+                          {(previewImg || f.img) && (
                             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '7px 12px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
                                 <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 14 }}>✓</span>
@@ -837,7 +850,7 @@ export default function InventoryPage() {
                               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                 <button
                                   type="button"
-                                  onClick={() => fileInputRef.current?.click()}
+                                  onClick={triggerReupload}
                                   style={{ background: 'none', border: 'none', color: 'var(--g700)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                   Replace
@@ -845,7 +858,11 @@ export default function InventoryPage() {
                                 <span style={{ color: '#86efac' }}>|</span>
                                 <button
                                   type="button"
-                                  onClick={() => set('img', '')}
+                                  onClick={() => {
+                                    set('img', '');
+                                    setPreviewImg('');
+                                    setImageLoadError(false);
+                                  }}
                                   style={{ background: 'none', border: 'none', color: '#b91c1c', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
                                 >
                                   Clear
@@ -861,7 +878,11 @@ export default function InventoryPage() {
                             className="adm-input"
                             required
                             value={f.img}
-                            onChange={e => set('img', e.target.value)}
+                            onChange={e => {
+                              set('img', e.target.value);
+                              setPreviewImg(e.target.value);
+                              setImageLoadError(false);
+                            }}
                             placeholder="/products/boost-3499.webp or https://..."
                           />
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -878,15 +899,15 @@ export default function InventoryPage() {
                         {(previewImg || f.img) && (
                           <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={triggerReupload}
                             style={{
-                              background: '#f0fdf4',
-                              border: '1px solid #bbf7d0',
+                              background: '#dcfce7',
+                              border: '1px solid #86efac',
                               color: '#15803d',
-                              fontSize: 11,
+                              fontSize: 11.5,
                               fontWeight: 700,
                               borderRadius: 6,
-                              padding: '2px 8px',
+                              padding: '3px 10px',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -915,7 +936,7 @@ export default function InventoryPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                           {/* Image Box - Clickable to Reupload */}
                           <div
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={triggerReupload}
                             title="Click preview to re-upload image"
                             style={{
                               position: 'relative',
@@ -986,11 +1007,11 @@ export default function InventoryPage() {
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => fileInputRef.current?.click()}
+                                  onClick={triggerReupload}
                                   className="adm-btn adm-btn-primary"
                                   style={{
                                     fontSize: 11.5,
-                                    padding: '5px 12px',
+                                    padding: '6px 12px',
                                     borderRadius: 6,
                                     background: '#dc2626',
                                     border: 'none',
@@ -1017,7 +1038,7 @@ export default function InventoryPage() {
                                   lineHeight: 1.4,
                                   maxHeight: 38,
                                   overflow: 'hidden',
-                                  marginBottom: 6
+                                  marginBottom: 8
                                 }}>
                                   {f.img ? (f.img.startsWith('data:') ? 'Base64 WebP format' : (f.img.length > 55 ? f.img.substring(0, 52) + '…' : f.img)) : 'Choose an image file from your device.'}
                                 </div>
@@ -1025,22 +1046,22 @@ export default function InventoryPage() {
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                   <button
                                     type="button"
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={triggerReupload}
                                     style={{
-                                      background: '#ffffff',
-                                      border: '1px solid var(--border)',
-                                      color: 'var(--text)',
-                                      padding: '3px 9px',
+                                      background: '#16a34a',
+                                      border: 'none',
+                                      color: '#ffffff',
+                                      padding: '4px 10px',
                                       borderRadius: 6,
-                                      fontSize: 11,
-                                      fontWeight: 600,
+                                      fontSize: 11.5,
+                                      fontWeight: 700,
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       gap: 4
                                     }}
                                   >
-                                    🔄 Re-upload
+                                    🔄 Re-upload Image
                                   </button>
                                   {(previewImg || f.img) && (
                                     <button
@@ -1052,11 +1073,11 @@ export default function InventoryPage() {
                                       }}
                                       style={{
                                         background: 'transparent',
-                                        border: '1px solid transparent',
+                                        border: '1px solid var(--border)',
                                         color: '#ef4444',
-                                        padding: '3px 8px',
+                                        padding: '4px 8px',
                                         borderRadius: 6,
-                                        fontSize: 11,
+                                        fontSize: 11.5,
                                         fontWeight: 600,
                                         cursor: 'pointer'
                                       }}

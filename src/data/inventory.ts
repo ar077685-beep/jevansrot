@@ -258,6 +258,18 @@ export async function uploadProductImage(
     console.warn('Image optimization warning, continuing with raw file:', err);
   }
 
+  // Ensure dataUrl is always available for instant preview and fallback
+  if (!dataUrl) {
+    try {
+      dataUrl = await new Promise<string>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => resolve('');
+        r.readAsDataURL(file);
+      });
+    } catch {}
+  }
+
   const origExt = file.name.substring(file.name.lastIndexOf('.')) || '.webp';
   const cleanBase = file.name
     .substring(0, file.name.lastIndexOf('.'))
